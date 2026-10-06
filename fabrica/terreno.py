@@ -66,8 +66,9 @@ def _sombreado(elev, region, z=4.0, azimut=315, altura=45):
     return np.clip(np.sin(al) * np.sin(pend) + np.cos(al) * np.cos(pend) * np.cos(az - asp), 0, 1)
 
 
-def textura(elev, region):
-    marble = Image.open(datos.blue_marble()).convert("RGB")
+def textura(elev, region, fuente: Path):
+    Image.MAX_IMAGE_PIXELS = None   # la original de la NASA tiene 233 Mpx
+    marble = Image.open(fuente).convert("RGB")
     W, H = marble.size
     lado = elev.shape[0]
     caja = ((region[0] + 180) / 360 * W, (90 - region[3]) / 180 * H, (region[2] + 180) / 360 * W, (90 - region[1]) / 180 * H)
@@ -84,15 +85,16 @@ def textura(elev, region):
     return Image.fromarray((np.clip(out, 0, 1) * 255).astype(np.uint8))
 
 
-def preparar(region, destino: Path, lado_textura=4096, rejilla=384) -> dict:
+def preparar(region, destino: Path, lado_textura=4096, rejilla=384, fuente: Path | None = None) -> dict:
     """Escribe textura.jpg y relieve.bin en 'destino' (desde caché si ya existen)."""
-    clave = hashlib.sha1(json.dumps([VERSION, list(region), lado_textura, rejilla]).encode()).hexdigest()[:12]
+    fuente = fuente or datos.blue_marble()
+    clave = hashlib.sha1(json.dumps([VERSION, list(region), lado_textura, rejilla, fuente.name]).encode()).hexdigest()[:12]
     cache = datos.DATOS / "cache_terreno" / clave
     if not (cache / "relieve.bin").exists():
         cache.mkdir(parents=True, exist_ok=True)
         print(f"  relieve: descargando y procesando región {region}...")
         elev = elevacion(region, lado_textura)
-        textura(elev, region).save(cache / "textura.jpg", quality=90)
+        textura(elev, region, fuente).save(cache / "textura.jpg", quality=92)
         paso = lado_textura // rejilla
         malla = elev[: paso * rejilla, : paso * rejilla].reshape(rejilla, paso, rejilla, paso).max(axis=(1, 3))
         np.maximum(malla, 0).astype(np.float32).tofile(cache / "relieve.bin")

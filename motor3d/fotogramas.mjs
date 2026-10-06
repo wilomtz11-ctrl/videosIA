@@ -18,8 +18,9 @@ const srv = createServer(async (q, r) => {
 });
 await new Promise(ok => srv.listen(0, ok));
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const { ancho: width, alto: height } = JSON.parse(await readFile(join(build, 'datos', 'escena.json'), 'utf8')).formato;
-const page = await browser.newPage({ viewport: { width, height } });
+const E = JSON.parse(await readFile(join(build, 'datos', 'escena.json'), 'utf8'));
+const { ancho: width, alto: height } = E.formato;
+const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: E.escala || 1 });
 page.on('pageerror', e => console.error('[error en la página]', e.message));
 await page.goto(`http://localhost:${srv.address().port}/`);
 await page.waitForFunction(() => window.motorListo === true, null, { timeout: 180000 });

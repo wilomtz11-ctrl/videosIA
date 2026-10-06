@@ -4,6 +4,15 @@
 import * as THREE from './lib/three.module.js';
 window.THREE = THREE;   // HyperFrames espera a que terminen las cargas del DefaultLoadingManager
 
+// El evento de HyperFrames se registra ANTES de cargar nada: si un fotograma se pide mientras el motor
+// aún carga (pasa en 4K o en máquinas lentas), la captura espera con waitUntil en vez de salir vacía.
+let avisarListo;
+const listo = new Promise(ok => { avisarListo = ok; });
+window.addEventListener('hf-seek', e => {
+  const t = e.detail.time;
+  e.detail.waitUntil(listo.then(render => render(t)));
+});
+
 const R_TIERRA = 6371000;
 const deg = Math.PI / 180;
 const clamp01 = x => Math.max(0, Math.min(1, x));
@@ -45,7 +54,7 @@ const radioSuelo = (lon, lat) => 1 + alturaEn(lon, lat) * EXAG / R_TIERRA;
 
 // ---------- escena ----------
 const renderer = new THREE.WebGLRenderer({ antialias: E.antialias !== false, preserveDrawingBuffer: true });
-renderer.setPixelRatio(1);
+renderer.setPixelRatio(window.devicePixelRatio || 1);
 renderer.setSize(W, H);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 $('escena').appendChild(renderer.domElement);
@@ -280,6 +289,6 @@ function renderAt(t) {
 }
 window.renderAt = renderAt;
 window.__depurar = { scene, LINEAS, FLECHAS, renderer };   // para medir rendimiento desde la consola
-window.addEventListener('hf-seek', e => renderAt(e.detail.time));
 renderAt(window.__hfThreeTime || 0);
+avisarListo(renderAt);
 window.motorListo = true;

@@ -50,5 +50,21 @@ def tesela_terreno(z: int, x: int, y: int) -> Path:
     return bajar(TERRENO.format(z=z, x=x, y=y), DATOS / "terrarium" / str(z) / str(x) / f"{y}.png")
 
 
-def blue_marble() -> Path:
+MARBLE_HD = [   # NASA Blue Marble Next Generation (diciembre, con relieve y batimetría), 21600×10800, dominio público
+    "https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73909/world.topo.bathy.200412.3x21600x10800.jpg",
+    "https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74142/world.topo.200412.3x21600x10800.jpg",
+    "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-topography/december/world.topo.200412.3x21600x10800.jpg",
+]
+
+
+def blue_marble(hd: bool = False) -> Path:
+    """Imagen base del planeta. Con hd=True intenta la original de la NASA (21600 px) y si no hay acceso usa la de 4096 px."""
+    if hd:
+        destino = DATOS / "blue-marble-21600.jpg"
+        for url in MARBLE_HD:
+            try:
+                return bajar(url, destino)
+            except OSError as e:
+                print(f"  (sin acceso a {url.split('/')[2]}: {e.__class__.__name__})")
+        print("  aviso: uso Blue Marble de 4096 px; permite el acceso a eoimages.gsfc.nasa.gov para máxima nitidez")
     return bajar(MARBLE, DATOS / "blue-marble.jpg")

@@ -16,6 +16,7 @@ import yaml
 from . import audio as mezclador
 
 from . import capas, datos, terreno, voz
+from .calidad import CALIDADES
 from .linea_tiempo import compilar
 from .lugares import Lugares
 from .modelo import Episodio
@@ -35,7 +36,7 @@ def _paso(n, total, texto):
     print(f"[{n}/{total}] {texto}", flush=True)
 
 
-def preparar(ruta_ep: Path, motor_voz: str | None = None, borrador: bool = False) -> tuple[Path, dict]:
+def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal") -> tuple[Path, dict]:
     """Deja listo build/<episodio>/ para renderizar. Devuelve (carpeta, info)."""
     ep = cargar(ruta_ep)
     if motor_voz:
@@ -46,17 +47,19 @@ def preparar(ruta_ep: Path, motor_voz: str | None = None, borrador: bool = False
     if build.exists():
         shutil.rmtree(build)
     dat.mkdir(parents=True)
+    cal = CALIDADES[calidad]
     ancho, alto, resol = FORMATOS[ep.formato]
     lugares = Lugares(ep.region, ep.lugares)
 
     _paso(1, 5, "Relieve y textura")
-    info = terreno.preparar(ep.region, dat)
-    shutil.copy(datos.blue_marble(), dat / "blue-marble.jpg")
+    fuente = datos.blue_marble(hd=calidad == "maxima")
+    info = terreno.preparar(ep.region, dat, cal.textura, cal.rejilla, fuente)
+    _textura_globo(fuente, cal.globo, dat / "blue-marble.jpg")
 
     _paso(2, 5, "Formas y mapas")
     geoms = {k: capas.forma(f, lugares, ep.region) for k, f in ep.formas.items()}
-    info["formas"] = capas.mascaras(geoms, ep.region, dat)
-    info["mapas"] = [capas.mapa_politico(k, a, ep.region, ep.colores, lugares, dat) for k, a in ep.mapas.items()]
+    info["formas"] = capas.mascaras(geoms, ep.region, dat, n=cal.capas)
+    info["mapas"] = [capas.mapa_politico(k, a, ep.region, ep.colores, lugares, dat, n=cal.capas) for k, a in ep.mapas.items()]
 
     _paso(3, 5, f"Voz ({ep.voz.motor})")
     voces = voz.generar(nombre, ep.escenas, ep.voz, RAIZ / "voz")
@@ -64,7 +67,8 @@ def preparar(ruta_ep: Path, motor_voz: str | None = None, borrador: bool = False
     _paso(4, 5, "Línea de tiempo")
     comp = compilar(ep, voces, lugares, {"rejilla": info["rejilla"], "formas": info["formas"],
                                           "mapas": [{"id": m["id"]} for m in info["mapas"]]}, (ancho, alto))
-    comp.escena["antialias"] = not borrador   # el MSAA cuesta ~35 % sin GPU
+    comp.escena["escala"] = cal.escala
+    comp.escena["antialias"] = cal.antialias   # el MSAA cuesta ~35 % sin GPU
     (dat / "escena.json").write_text(json.dumps(comp.escena, ensure_ascii=False), encoding="utf-8")
     dur = comp.escena["duracion"]
     print(f"      duración: {dur:.1f} s, {len(ep.escenas)} escenas")
@@ -93,7 +97,18 @@ def preparar(ruta_ep: Path, motor_voz: str | None = None, borrador: bool = False
     for f in ("Montserrat-ExtraBold.ttf", "Montserrat-Bold.ttf"):
         shutil.copy(RAIZ / "fuentes" / f, build / "fuentes" / f)
     (build / "meta.json").write_text(json.dumps({"id": nombre, "name": ep.titulo}), encoding="utf-8")
-    return build, {"episodio": ep, "nombre": nombre, "duracion": dur, "mezcla": mezcla}
+    return build, {"episodio": ep, "nombre": nombre, "duracion": dur, "mezcla": mezcla, "calidad": cal,
+                   "resolucion": resol + ("-4k" if cal.escala == 2 else "")}
+
+
+def _textura_globo(fuente: Path, ancho: int, destino: Path):
+    """Textura del globo al tamaño que aguantan las GPU (máx. 8192 px en la mayoría)."""
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = None
+    im = Image.open(fuente).convert("RGB")
+    if im.width > ancho:
+        im = im.resize((ancho, ancho // 2), Image.LANCZOS)
+    im.save(destino, quality=92)
 
 
 def fotogramas(build: Path, segundos: list[float], salida: Path) -> list[Path]:
@@ -102,19 +117,23 @@ def fotogramas(build: Path, segundos: list[float], salida: Path) -> list[Path]:
     return sorted(salida.glob(f"{build.name}_t*.jpg"))
 
 
-def renderizar(build: Path, info: dict, borrador=False, procesos: int | None = None) -> Path:
+def renderizar(build: Path, info: dict, procesos: int | None = None) -> Path:
     salida = RAIZ / "salida"
     salida.mkdir(exist_ok=True)
     mudo = build / "video_mudo.mp4"
     env = {**os.environ, "HYPERFRAMES_NO_TELEMETRY": "1", "DO_NOT_TRACK": "1", "HYPERFRAMES_SKIP_SKILLS": "1"}
     procesos = procesos or max(1, min(4, os.cpu_count() or 1))
-    cmd = ["npx", "--yes", HYPERFRAMES, "render", "-w", str(procesos), "-o", str(mudo), "-q", "draft" if borrador else "high"]
+    cal = info["calidad"]
+    cmd = ["npx", "--yes", HYPERFRAMES, "render", "-w", str(procesos), "-o", str(mudo), "-q", cal.hf_calidad,
+           "--resolution", info["resolucion"], "--protocol-timeout", "900000"]
+    if cal.crf is not None:
+        cmd += ["--crf", str(cal.crf)]
     t0 = time.time()
     subprocess.run(cmd, cwd=build, env=env, check=True)
     print(f"      render: {time.time() - t0:.0f} s")
-    final = salida / f"{info['nombre']}.mp4"
+    final = salida / f"{info['nombre']}{'' if cal.nombre == 'normal' else '_' + cal.nombre}.mp4"
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(mudo), "-i", info["mezcla"], "-map", "0:v", "-map", "1:a",
-                    "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(final)], check=True)
+                    "-c:v", "copy", "-c:a", "aac", "-b:a", "384k", "-shortest", "-movflags", "+faststart", str(final)], check=True)
     descripcion(info, salida / f"{info['nombre']}_descripcion.txt")
     return final
 
