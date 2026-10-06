@@ -90,7 +90,7 @@ const transparente = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1); 
 const NF = 8;
 const uRel = {
   uTex: { value: texRelieve }, uF0: { value: texF0 }, uF1: { value: texF1 },
-  uMapaA: { value: transparente }, uMapaB: { value: transparente }, uMezclaMapa: { value: 0 }, uOpacMapa: { value: 1 },
+  uMapaA: { value: transparente }, uMapaB: { value: transparente }, uMezclaMapa: { value: 0 }, uOpacMapa: { value: 1 }, uOpacParche: { value: 1 },
   uExag: { value: EXAG }, uT: { value: 0 },
   uBrillo: { value: new Array(NF).fill(0) }, uColorBrillo: { value: Array.from({ length: NF }, () => new THREE.Vector3()) },
   uPintura: { value: new Array(NF).fill(0) }, uColorPintura: { value: Array.from({ length: NF }, () => new THREE.Vector3()) },
@@ -126,7 +126,7 @@ const uRel = {
         gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
       }`,
     fragmentShader: `
-      uniform sampler2D uTex, uF0, uF1, uMapaA, uMapaB; uniform float uMezclaMapa, uOpacMapa, uT;
+      uniform sampler2D uTex, uF0, uF1, uMapaA, uMapaB; uniform float uMezclaMapa, uOpacMapa, uOpacParche, uT;
       uniform float uBrillo[${NF}], uPintura[${NF}]; uniform vec3 uColorBrillo[${NF}], uColorPintura[${NF}];
       varying vec2 vUv; ${mascaras}
       void main(){
@@ -143,7 +143,7 @@ const uRel = {
           c += uColorBrillo[i] * uBrillo[i] * (k * 0.35 * pulso + borde * 1.3);
         }
         float e = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
-        gl_FragColor = vec4(c, smoothstep(0.0, 0.12, e));
+        gl_FragColor = vec4(c, smoothstep(0.0, 0.12, e) * uOpacParche);
         #include <colorspace_fragment>
       }`,
   })));
@@ -159,19 +159,16 @@ for (const [id, m] of Object.entries(MAPAS)) {
   scene.add(obj); LINEAS[id] = obj;
 }
 
-// ---------- flechas: arcos 3D que crecen ----------
+// ---------- flechas: arco 3D sobre el relieve, dibujado en pantalla (grosor constante y nítido en 4K) ----------
 const FLECHAS = E.flechas.map(f => {
   const a = v3(f.de[0], f.de[1]), b = v3(f.a[0], f.a[1]);
   const pts = [];
   for (let i = 0; i <= 64; i++) {
     const k = i / 64, p = a.clone().lerp(b, k).normalize();
     const lon = Math.atan2(p.x, p.z) / deg, lat = Math.asin(p.y) / deg;
-    pts.push(p.multiplyScalar(radioSuelo(lon, lat) + 0.004 + 0.06 * a.distanceTo(b) * Math.sin(Math.PI * k)));
+    pts.push(p.multiplyScalar(radioSuelo(lon, lat) + 0.002 + 0.08 * a.distanceTo(b) * Math.sin(Math.PI * k)));
   }
-  const tubo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 128, 0.0035, 8, false);
-  const mat = new THREE.MeshBasicMaterial({ color: hex(f.color), transparent: true, depthTest: false });
-  const malla = new THREE.Mesh(tubo, mat); malla.renderOrder = 5; scene.add(malla);
-  return { f, malla, total: tubo.index.count };
+  return { f, pts };
 });
 
 // ---------- cámara ----------
@@ -203,6 +200,31 @@ const crear = (clase, html, estilo = '') => { const d = document.createElement('
 const ETQ = E.etiquetas.map(e => ({ e, el: crear(`etq ${e.estilo}`, e.texto, `font-size:${e.tam}px`) }));
 const ANI = E.anillos.map(a => ({ a, el: crear('anillo', '', `border-color:${a.color};color:${a.color}`) }));
 const SUB = crear('subs', '');
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const svg = document.createElementNS(SVG_NS, 'svg');
+svg.setAttribute('class', 'flechas'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+capa.appendChild(svg);
+for (const fl of FLECHAS) {
+  fl.g = document.createElementNS(SVG_NS, 'g');
+  fl.g.setAttribute('style', `color:${fl.f.color}`);
+  fl.linea = document.createElementNS(SVG_NS, 'path'); fl.linea.setAttribute('class', 'trazo');
+  fl.punta = document.createElementNS(SVG_NS, 'path'); fl.punta.setAttribute('class', 'punta');
+  fl.g.append(fl.linea, fl.punta); svg.appendChild(fl.g);
+}
+function dibujarFlechas(t) {
+  for (const { f, pts, g, linea, punta } of FLECHAS) {
+    const p = rampa(t, f.t0, f.dur), alfa = t >= f.t0 && t <= f.t1 ? 1 - rampa(t, f.t1 - 0.3, 0.3) : 0;
+    g.style.opacity = alfa;
+    if (alfa <= 0 || p <= 0) { linea.setAttribute('d', ''); punta.setAttribute('d', ''); continue; }
+    const n = Math.max(2, Math.ceil(p * (pts.length - 1)) + 1);
+    const xy = pts.slice(0, n).map(q => { const s = q.clone().project(camera); return [(s.x + 1) / 2 * W, (1 - s.y) / 2 * H]; });
+    linea.setAttribute('d', 'M' + xy.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('L'));
+    const [x1, y1] = xy[xy.length - 1], [x0, y0] = xy[Math.max(0, xy.length - 4)];
+    const ang = Math.atan2(y1 - y0, x1 - x0), L = 46;
+    const pt = d => `${(x1 + Math.cos(ang + d) * L).toFixed(1)},${(y1 + Math.sin(ang + d) * L).toFixed(1)}`;
+    punta.setAttribute('d', `M${(x1 + Math.cos(ang) * 14).toFixed(1)},${(y1 + Math.sin(ang) * 14).toFixed(1)}L${pt(2.55)}L${pt(-2.55)}Z`);
+  }
+}
 function proyectar(lon, lat) {
   const p = v3(lon, lat, radioSuelo(lon, lat) + 0.002);
   const visible = p.clone().normalize().dot(camera.position.clone().sub(p)) > 0;
@@ -233,7 +255,10 @@ function renderAt(t) {
   const actual = P[j][1], anterior = j > 0 ? P[j - 1][1] : actual, k = j > 0 ? rampa(t, P[j][0], E.transicion_mapa) : 1;
   uRel.uMapaA.value = MAPAS[anterior]?.tex || transparente; uRel.uMapaB.value = MAPAS[actual]?.tex || transparente;
   uRel.uMezclaMapa.value = k;
-  uRel.uOpacMapa.value = 0.3 + 0.7 * suave((alt - 0.2) / 0.6);   // de cerca, el relieve manda
+  // desde el espacio solo se ve el globo limpio; el relieve y los colores aparecen al acercarse
+  const lejos = suave((alt - 1.3) / 0.9);
+  uRel.uOpacParche.value = 1 - lejos;
+  uRel.uOpacMapa.value = (0.3 + 0.7 * suave((alt - 0.2) / 0.6)) * (1 - lejos);   // de cerca, el relieve manda
   for (const [id, l] of Object.entries(LINEAS)) l.material.opacity = 0.75 * (id === actual ? k : id === anterior ? 1 - k : 0);
   // formas: brillo, pintura, alza
   uRel.uT.value = t;
@@ -249,13 +274,6 @@ function renderAt(t) {
     } else if (ev.tipo === 'despintar' && t >= ev.t) {
       uRel.uPintura.value[i] *= 1 - rampa(t, ev.t, ev.dur);
     }
-  }
-  // flechas
-  for (const { f, malla, total } of FLECHAS) {
-    const p = rampa(t, f.t0, f.dur);
-    malla.visible = t >= f.t0 && t <= f.t1;
-    malla.geometry.setDrawRange(0, Math.floor(total * p / 6) * 6);
-    malla.material.opacity = 1 - rampa(t, f.t1 - 0.3, 0.3);
   }
   renderer.render(scene, camera);
 
@@ -273,6 +291,7 @@ function renderAt(t) {
     const s = proyectar(a.lon, a.lat), r = 40 * (1 + 0.15 * Math.sin((t - a.t0) * 6));
     Object.assign(el.style, { left: s.x + 'px', top: s.y + 'px', width: 2 * r + 'px', height: 2 * r + 'px', opacity: s.visible ? v * zona(s.x, s.y) : 0 });
   }
+  dibujarFlechas(t);
   const an = $('anio'); an.textContent = anioEn(t);
   const tit = E.titulares.find(x => t >= x.t0 && t < x.t1), ti = $('titular');
   if (tit) {
