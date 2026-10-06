@@ -1,0 +1,7 @@
+numpy
+shapely>=2.0
+skia-python
+soundfile
+# Voz (instala solo la que uses):
+#   kokoro>=0.9      -> además necesitas espeak-ng instalado en el sistema
+#   chatterbox-tts   -> mejor en GPU (Google Colab gratis)

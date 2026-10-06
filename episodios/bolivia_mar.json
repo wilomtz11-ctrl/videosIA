@@ -1,0 +1,181 @@
+{
+  "titulo": "¿Por qué Bolivia no tiene mar?",
+  "region": [-92, -58, -30, 15],
+  "credito": "Mapas: historical-basemaps (A. Ourednik) · fronteras aproximadas",
+  "marca": "",
+  "musica": "musica/fondo.mp3",
+
+  "voz": {
+    "kokoro": {"voz": "em_alex", "velocidad": 1.05},
+    "chatterbox": {"emocion": 0.55, "cfg": 0.5}
+  },
+
+  "colores": {
+    "Bolivia": "#F4D35E", "Chile": "#E5534B", "Peru": "#B79CD9", "Argentina": "#8AB6D6",
+    "Brazil": "#81B29A", "Kingdom of Brazil": "#81B29A", "Paraguay": "#C99AA4", "Uruguay": "#A8DADC",
+    "Ecuador": "#F2B880", "Colombia": "#D4A373", "Venezuela": "#E07A5F",
+    "Mapuche": "#E8DFC9", "Pampas cultures": "#E8DFC9"
+  },
+
+  "mapas": {
+    "1878": {"anio": 1878},
+    "hoy": {"anio": 2010}
+  },
+
+  "formas": {
+    "litoral": {"op": "interseccion", "a": "1878:Bolivia", "b": "2010:Chile", "filtro": [-72, -25.5, -66, -20.5]},
+    "tarapaca": {"op": "interseccion", "a": "1878:Peru", "b": "2010:Chile", "filtro": [-72, -22, -66, -17]},
+    "bolivia_hoy": {"op": "pais", "a": "2010:Bolivia"}
+  },
+
+  "grupos_etiquetas": {
+    "paises": [
+      {"texto": "BOLIVIA", "lon": -64.6, "lat": -16.6, "tam": 54},
+      {"texto": "PERÚ", "lon": -74.2, "lat": -10.5, "tam": 44},
+      {"texto": "CHILE", "lon": -71.0, "lat": -30.5, "tam": 38, "rot": 90},
+      {"texto": "ARGENTINA", "lon": -64.0, "lat": -31.0, "tam": 44},
+      {"texto": "BRASIL", "lon": -58.0, "lat": -10.5, "tam": 42},
+      {"texto": "PARAGUAY", "lon": -58.6, "lat": -22.8, "tam": 30}
+    ]
+  },
+
+  "escenas": [
+    {
+      "id": "gancho",
+      "narracion": "Bolivia tiene armada, con barcos y miles de marinos... pero no tiene mar. ¿Cómo es posible?",
+      "mapa": "hoy", "anio": "HOY",
+      "camara": {"centro": [-65.0, -18.5], "alto": 36},
+      "texto": {"texto": "Bolivia tiene armada...\npero NO tiene mar", "estilo": "alerta", "tam": 58},
+      "etiquetas": ["@paises"],
+      "destacar": [{"forma": "bolivia_hoy", "color": "#4CC9F0", "retraso": 0.6}]
+    },
+    {
+      "id": "nacimiento",
+      "narracion": "Cuando nació, en 1825, Bolivia sí tenía costa: unos cuatrocientos kilómetros frente al océano Pacífico, en pleno desierto de Atacama.",
+      "mapa": "1878", "anio": 1825,
+      "camara": {"centro": [-66.5, -20.0], "alto": 34},
+      "texto": {"texto": "Unos 400 km de costa", "estilo": "dato", "retraso": 2.2},
+      "etiquetas": ["@paises", {"texto": "Océano\nPacífico", "lon": -74.0, "lat": -24.0, "tam": 34, "estilo": "claro"}],
+      "destacar": [{"forma": "litoral", "color": "#4CC9F0", "retraso": 1.0}]
+    },
+    {
+      "id": "salitre",
+      "narracion": "Ese desierto parecía no valer nada, hasta que encontraron salitre: un fertilizante tan valioso que lo llamaban el oro blanco. Empresas chilenas y británicas llegaron a explotarlo.",
+      "mapa": "1878", "anio": 1870,
+      "camara": {"centro": [-69.4, -22.6], "alto": 14, "mov": 1.6},
+      "texto": {"texto": "Salitre: el \"oro blanco\"", "estilo": "dato", "retraso": 2.0},
+      "etiquetas": [
+        {"texto": "Antofagasta", "lon": -70.40, "lat": -23.65, "tam": 34, "estilo": "punto"},
+        {"texto": "Litoral boliviano", "lon": -68.9, "lat": -22.0, "tam": 30, "color": "#14212B"}
+      ],
+      "destacar": [{"forma": "litoral", "color": "#FFFFFF", "retraso": 0.8}]
+    },
+    {
+      "id": "tratado_1874",
+      "narracion": "En 1874, Bolivia firmó que no subiría los impuestos a esas empresas durante veinticinco años.",
+      "mapa": "1878", "anio": 1874,
+      "texto": {"texto": "Tratado de 1874:\nsin nuevos impuestos por 25 años", "estilo": "nota", "tam": 46},
+      "etiquetas": [
+        {"texto": "Antofagasta", "lon": -70.40, "lat": -23.65, "tam": 34, "estilo": "punto"},
+        {"texto": "Litoral boliviano", "lon": -68.9, "lat": -22.0, "tam": 30, "color": "#14212B"}
+      ]
+    },
+    {
+      "id": "impuesto",
+      "narracion": "Pero en 1878 les cobró diez centavos más por cada quintal de salitre. La empresa se negó a pagar.",
+      "mapa": "1878", "anio": 1878,
+      "texto": {"texto": "+10 centavos por quintal", "estilo": "alerta"},
+      "etiquetas": [
+        {"texto": "Antofagasta", "lon": -70.40, "lat": -23.65, "tam": 34, "estilo": "punto"},
+        {"texto": "Litoral boliviano", "lon": -68.9, "lat": -22.0, "tam": 30, "color": "#14212B"}
+      ],
+      "anillos": [{"lon": -70.40, "lat": -23.65, "color": "#FF4D4F", "radio": 80, "retraso": 0.8}]
+    },
+    {
+      "id": "ocupacion",
+      "narracion": "Bolivia ordenó rematar la empresa. Y el catorce de febrero de 1879, el mismo día del remate, tropas chilenas desembarcaron en Antofagasta.",
+      "mapa": "1878", "anio": 1879,
+      "camara": {"centro": [-68.5, -29.0], "alto": 27, "mov": 1.3},
+      "texto": {"texto": "14 de febrero de 1879", "estilo": "alerta", "retraso": 3.0},
+      "etiquetas": [
+        {"texto": "Antofagasta", "lon": -70.40, "lat": -23.65, "tam": 34, "estilo": "punto"},
+        {"texto": "Valparaíso", "lon": -71.62, "lat": -33.05, "tam": 32, "estilo": "punto"},
+        {"texto": "CHILE", "lon": -71.0, "lat": -30.5, "tam": 38, "rot": 90},
+        {"texto": "BOLIVIA", "lon": -65.5, "lat": -20.5, "tam": 46},
+        {"texto": "ARGENTINA", "lon": -64.0, "lat": -31.0, "tam": 44}
+      ],
+      "flechas": [{"de": [-72.3, -33.0], "a": [-70.7, -23.9], "color": "#FF4D4F", "curva": -0.25, "retraso": 3.2}],
+      "efectos": ["impacto"]
+    },
+    {
+      "id": "guerra",
+      "narracion": "Perú tenía un tratado secreto de defensa con Bolivia. Así estalló la Guerra del Pacífico: Chile contra Perú y Bolivia.",
+      "mapa": "1878", "anio": 1879,
+      "camara": {"centro": [-67.5, -20.5], "alto": 31},
+      "texto": {"texto": "GUERRA DEL PACÍFICO\n1879 – 1884", "estilo": "alerta", "retraso": 2.6},
+      "etiquetas": ["@paises"],
+      "destacar": [
+        {"forma": "litoral", "color": "#FF4D4F", "retraso": 2.6},
+        {"forma": "tarapaca", "color": "#FF4D4F", "retraso": 2.6}
+      ]
+    },
+    {
+      "id": "resultado",
+      "narracion": "Chile ganó. Bolivia perdió toda su costa, y Perú perdió Tarapacá y, años después, Arica.",
+      "mapa": "1878", "anio": 1884,
+      "texto": {"texto": "Bolivia se queda sin mar", "estilo": "alerta", "retraso": 1.0},
+      "etiquetas": ["@paises"],
+      "pintar": [
+        {"forma": "litoral", "color": "#E5534B", "retraso": 0.9, "dur": 1.2},
+        {"forma": "tarapaca", "color": "#E5534B", "retraso": 3.2, "dur": 1.2}
+      ],
+      "efectos": ["impacto"]
+    },
+    {
+      "id": "tratado_1904",
+      "narracion": "En 1904, un tratado de paz lo hizo oficial. A cambio, Chile construyó un tren de Arica a La Paz y le dio a Bolivia libre tránsito por sus puertos.",
+      "mapa": "hoy", "anio": 1904,
+      "camara": {"centro": [-69.0, -18.0], "alto": 13, "mov": 1.6},
+      "texto": {"texto": "Tratado de Paz de 1904", "estilo": "nota"},
+      "etiquetas": [
+        {"texto": "La Paz", "lon": -68.15, "lat": -16.50, "tam": 34, "estilo": "punto"},
+        {"texto": "Arica", "lon": -70.31, "lat": -18.48, "tam": 34, "estilo": "punto", "lado": "izq"},
+        {"texto": "BOLIVIA", "lon": -67.4, "lat": -19.8, "tam": 46},
+        {"texto": "CHILE", "lon": -69.4, "lat": -21.8, "tam": 34},
+        {"texto": "PERÚ", "lon": -71.3, "lat": -15.2, "tam": 38}
+      ],
+      "flechas": [{"de": [-68.15, -16.5], "a": [-70.31, -18.48], "color": "#4CC9F0", "curva": 0.15, "retraso": 3.0, "dur": 1.6}]
+    },
+    {
+      "id": "la_haya",
+      "narracion": "Bolivia nunca dejó de reclamar. En 2013 demandó a Chile en La Haya. Y en 2018 la Corte falló: Chile no está obligado a negociar una salida al mar.",
+      "mapa": "hoy", "anio": 2018,
+      "camara": {"centro": [-66.0, -19.5], "alto": 34, "mov": 1.5},
+      "texto": {"texto": "Corte de La Haya, 2018:\n12 votos contra 3", "estilo": "dato", "retraso": 4.5},
+      "etiquetas": ["@paises"],
+      "destacar": [{"forma": "litoral", "color": "#FFFFFF", "retraso": 1.0}]
+    },
+    {
+      "id": "cierre",
+      "narracion": "Por eso hoy su armada patrulla el lago Titicaca y los ríos de la Amazonía. ¿Qué país quieres que explique después? Te leo en los comentarios.",
+      "mapa": "hoy", "anio": "HOY",
+      "camara": {"centro": [-65.5, -17.0], "alto": 30},
+      "texto": {"texto": "¿Qué país sigue?\n¡Comenta!", "estilo": "nota", "retraso": 4.2},
+      "etiquetas": ["@paises", {"texto": "Lago Titicaca", "lon": -69.35, "lat": -15.85, "tam": 30, "estilo": "punto", "lado": "der"}],
+      "anillos": [{"lon": -69.35, "lat": -15.85, "color": "#4CC9F0", "radio": 42, "retraso": 0.6}]
+    }
+  ],
+
+  "publicacion": {
+    "titulo": "¿Por qué Bolivia no tiene mar? 🌊",
+    "descripcion": "Bolivia nació con 400 km de costa en el desierto de Atacama. Un impuesto de 10 centavos al salitre terminó en la Guerra del Pacífico (1879–1884), y con ella perdió su salida al mar. Te lo explico en un mapa.",
+    "fuentes": [
+      "Corte Internacional de Justicia, Obligación de negociar un acceso al océano Pacífico (Bolivia c. Chile), fallo del 1 de octubre de 2018: https://www.icj-cij.org/case/153",
+      "Encyclopaedia Britannica, War of the Pacific: https://www.britannica.com/event/War-of-the-Pacific",
+      "Tratado de Límites entre Bolivia y Chile de 1874: https://es.wikipedia.org/wiki/Tratado_de_L%C3%ADmites_entre_Bolivia_y_Chile_de_1874",
+      "Tratado de Paz y Amistad entre Chile y Bolivia de 1904: https://es.wikipedia.org/wiki/Tratado_de_Paz_y_Amistad_entre_Chile_y_Bolivia_de_1904",
+      "Fuerza Naval Boliviana: https://www.globalsecurity.org/military/world/bolivia/navy.htm"
+    ],
+    "hashtags": ["#bolivia", "#historia", "#geografia", "#mapas", "#chile", "#peru", "#guerradelpacifico", "#sabiasque"]
+  }
+}

@@ -1,0 +1,6 @@
+__pycache__/
+datos/
+salida/
+voz/
+musica/*
+!musica/LEEME.md
