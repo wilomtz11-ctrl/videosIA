@@ -29,6 +29,13 @@ def main(argv=None):
                    help="borrador = rápido; normal = 1080p; maxima = 4K nativo con texturas de alta resolución")
     r.add_argument("--borrador", action="store_true", help="atajo de --calidad borrador")
     r.add_argument("--procesos", type=int)
+    m = sub.add_parser("muestra", help="renderiza solo un tramo (para revisar calidad sin esperar el video completo)")
+    m.add_argument("episodio", type=Path)
+    m.add_argument("--desde", type=float, default=0)
+    m.add_argument("--hasta", type=float, default=6)
+    m.add_argument("--voz", choices=["kokoro", "chatterbox", "archivos", "estimar"])
+    m.add_argument("--calidad", choices=["borrador", "normal", "maxima"], default="maxima")
+    m.add_argument("--procesos", type=int)
     a = ap.parse_args(argv)
 
     from . import construir
@@ -44,6 +51,8 @@ def main(argv=None):
             for f in construir.fotogramas(build, a.segundos, construir.RAIZ / "salida" / "previa"):
                 print("  ", f)
         else:
+            if a.cmd == "muestra":
+                construir.recortar(build, info, a.desde, a.hasta)
             print("  ", construir.renderizar(build, info, procesos=a.procesos))
         return 0
     except ValidationError as e:

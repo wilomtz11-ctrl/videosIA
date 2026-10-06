@@ -223,6 +223,7 @@ function anioEn(t) {
 }
 
 function renderAt(t) {
+  t += E.desfase || 0;   // las muestras renderizan solo un tramo del episodio
   // cámara
   const [lo, la, alt, inc, rum] = camaraEn(t);
   ponerCamara(lo, la, alt, inc, rum);

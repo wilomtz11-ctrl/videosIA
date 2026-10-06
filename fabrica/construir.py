@@ -138,6 +138,21 @@ def renderizar(build: Path, info: dict, procesos: int | None = None) -> Path:
     return final
 
 
+def recortar(build: Path, info: dict, desde: float, hasta: float) -> None:
+    """Convierte el build en una muestra de [desde, hasta] segundos (para revisar sin renderizar todo)."""
+    hasta = min(hasta, info["duracion"])
+    dur = hasta - desde
+    esc = json.loads((build / "datos" / "escena.json").read_text(encoding="utf-8"))
+    esc["desfase"] = desde
+    (build / "datos" / "escena.json").write_text(json.dumps(esc, ensure_ascii=False), encoding="utf-8")
+    html = (build / "index.html").read_text(encoding="utf-8")
+    (build / "index.html").write_text(html.replace(f'data-duration="{info["duracion"]:.3f}"', f'data-duration="{dur:.3f}"'),
+                                      encoding="utf-8")
+    tramo = build / "mezcla_muestra.wav"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", str(desde), "-t", str(dur), "-i", info["mezcla"], str(tramo)], check=True)
+    info.update(mezcla=str(tramo), duracion=dur, nombre=f"{info['nombre']}_muestra_{desde:g}-{hasta:g}s")
+
+
 def descripcion(info: dict, ruta: Path):
     ep = info["episodio"]
     p = ep.publicacion

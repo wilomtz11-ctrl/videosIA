@@ -5,7 +5,8 @@ cada frase las palabras se reparten por sílabas (error típico < 0.15 s, sufici
 
 Motores:
   kokoro      Kokoro-82M en ONNX (Apache 2.0). CPU, ~3x tiempo real. Voces: em_alex, em_santa, ef_dora
-  chatterbox  Chatterbox Multilingual (MIT). Clona voz con 'referencia'. Mejor con GPU (Colab)
+  chatterbox  Chatterbox Multilingual (MIT). Expresiva ('emocion' 0.3–1.2) y clona la voz de 'referencia'.
+              Corre en su propio entorno (modelos/venv-chatterbox); en CPU ~5 s por segundo de audio
   archivos    WAV ya hechos por escena en voz/<episodio>/<id>.wav (tu propia voz)
   estimar     silencio con duración estimada (vista previa rápida)
 """
@@ -65,16 +66,33 @@ def _kokoro(texto, cfg):
     return _remuestrear(np.asarray(audio, np.float32), sr)
 
 
-def _chatterbox(texto, cfg):
-    if "chatterbox" not in _motores:
-        import torch
-        from chatterbox.mtl_tts import ChatterboxMultilingualTTS
-        disp = "cuda" if torch.cuda.is_available() else "cpu"
-        _motores["chatterbox"] = ChatterboxMultilingualTTS.from_pretrained(device=disp)
-    m = _motores["chatterbox"]
-    extra = {"audio_prompt_path": cfg.referencia} if cfg.referencia else {}
-    wav = m.generate(texto, language_id="es", **extra)
-    return _remuestrear(wav.squeeze(0).cpu().numpy(), m.sr)
+PY_CHATTERBOX = MODELOS / "venv-chatterbox" / "bin" / "python"
+
+
+def _referencia_es() -> Path:
+    """Voz de referencia en español para Chatterbox (generada con Kokoro em_alex; sin derechos de terceros)."""
+    ruta = MODELOS / "referencia_es_em_alex.wav"
+    if not ruta.exists():
+        from .modelo import Voz
+        txt = ("Hace más de cien años, en el desierto más seco del mundo, comenzó una historia increíble. "
+               "Una historia de minerales, tratados y una guerra que cambió el mapa de Sudamérica para siempre.")
+        sf.write(ruta, _kokoro(txt, Voz(voz="em_alex", velocidad=1.0)), SR)
+    return ruta
+
+
+def _chatterbox_lote(pendientes: list[dict], cfg) -> None:
+    """Sintetiza todas las frases pendientes en un solo proceso (el modelo se carga una vez)."""
+    import os
+    import subprocess
+    import sys
+    py = Path(os.environ.get("FABRICA_PY_CHATTERBOX", PY_CHATTERBOX))
+    if not py.exists():
+        py = Path(sys.executable)   # Chatterbox instalado en el mismo entorno (p. ej. Colab)
+    referencia = cfg.referencia or str(_referencia_es())
+    pedido = {"referencia": referencia, "items": pendientes}
+    print(f"  chatterbox: {len(pendientes)} frases (en CPU ~5 s por segundo de audio)...", flush=True)
+    subprocess.run([str(py), str(Path(__file__).with_name("chatterbox_worker.py"))], input=json.dumps(pedido),
+                   text=True, check=True, env={**os.environ, "HF_HUB_DISABLE_XET": "1"})
 
 
 def _palabras(frase, t0, t1):
@@ -88,15 +106,32 @@ def _palabras(frase, t0, t1):
     return out
 
 
-def sintetizar_escena(texto: str, cfg) -> tuple[np.ndarray, list[dict]]:
+def _ruta_frase(carpeta: Path, frase: str, cfg, emocion: float) -> Path:
+    h = hashlib.sha1(json.dumps([cfg.motor, cfg.voz, cfg.velocidad, cfg.referencia, emocion, cfg.cfg, frase]).encode()).hexdigest()[:16]
+    return carpeta / "frases" / f"{h}.wav"
+
+
+def _audio_frase(carpeta: Path, frase: str, cfg, emocion: float) -> np.ndarray:
+    ruta = _ruta_frase(carpeta, frase, cfg, emocion)
+    if not ruta.exists():
+        if cfg.motor != "kokoro":
+            raise RuntimeError(f"falta la frase sintetizada: {frase!r}")
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        sf.write(ruta, _kokoro(frase, cfg), SR)
+    a, sr = sf.read(str(ruta), dtype="float32")
+    return _remuestrear(a if a.ndim == 1 else a.mean(axis=1), sr)
+
+
+def sintetizar_escena(texto: str, cfg, carpeta: Path | None = None, emocion: float | None = None) -> tuple[np.ndarray, list[dict]]:
     """Devuelve (audio 24 kHz, palabras con tiempos relativos al inicio del audio)."""
     if cfg.motor == "estimar":
         dur = max(1.5, len(texto) / 15.0)
         return np.zeros(int(dur * SR), np.float32), _palabras(texto, 0.0, dur)
-    sintetizar = {"kokoro": _kokoro, "chatterbox": _chatterbox}[cfg.motor]
+    carpeta = carpeta or MODELOS / "cache_voz"
+    emocion = cfg.emocion if emocion is None else emocion
     trozos, palabras, t = [], [], 0.0
     for fr in frases(texto):
-        a = _recortar(sintetizar(fr, cfg))
+        a = _recortar(_audio_frase(carpeta, fr, cfg, emocion))
         dur = len(a) / SR
         palabras += _palabras(fr, t, t + dur)
         pausa = PAUSAS.get(fr.rstrip()[-1], 0.08)
@@ -110,11 +145,24 @@ def generar(episodio: str, escenas, cfg, carpeta: Path) -> list[dict]:
     """Por escena: {'wav', 'duracion', 'palabras'}. Reutiliza lo ya generado si el texto no cambió."""
     carpeta = Path(carpeta) / episodio
     carpeta.mkdir(parents=True, exist_ok=True)
+    if cfg.motor == "chatterbox":   # primero todas las frases que falten, en un solo lote
+        pendientes, vistas = [], set()
+        for esc in escenas:
+            emo = cfg.emocion if esc.emocion is None else esc.emocion
+            for fr in frases(esc.voz):
+                ruta = _ruta_frase(carpeta, fr, cfg, emo)
+                if not ruta.exists() and ruta not in vistas:
+                    vistas.add(ruta)
+                    pendientes.append({"texto": fr, "emocion": emo, "cfg": cfg.cfg, "salida": str(ruta)})
+        if pendientes:
+            (carpeta / "frases").mkdir(parents=True, exist_ok=True)
+            _chatterbox_lote(pendientes, cfg)
     salida = []
     for i, esc in enumerate(escenas):
         wav = carpeta / f"{i + 1:02d}_{esc.id}.wav"
         meta = wav.with_suffix(".json")
-        huella = hashlib.sha1(json.dumps([cfg.motor, cfg.voz, cfg.velocidad, cfg.referencia, esc.voz]).encode()).hexdigest()
+        emo = cfg.emocion if esc.emocion is None else esc.emocion
+        huella = hashlib.sha1(json.dumps([cfg.motor, cfg.voz, cfg.velocidad, cfg.referencia, emo, cfg.cfg, esc.voz]).encode()).hexdigest()
         if cfg.motor == "archivos":
             if not wav.exists():
                 raise FileNotFoundError(f"Falta {wav} (graba tu voz para esa escena)")
@@ -126,7 +174,7 @@ def generar(episodio: str, escenas, cfg, carpeta: Path) -> list[dict]:
             if m.get("huella") == huella:
                 salida.append({"wav": wav, "duracion": m["duracion"], "palabras": m["palabras"]})
                 continue
-        audio, palabras = sintetizar_escena(esc.voz, cfg)
+        audio, palabras = sintetizar_escena(esc.voz, cfg, carpeta, emo)
         sf.write(wav, audio, SR)
         dur = len(audio) / SR
         meta.write_text(json.dumps({"huella": huella, "duracion": dur, "palabras": palabras}, ensure_ascii=False), encoding="utf-8")

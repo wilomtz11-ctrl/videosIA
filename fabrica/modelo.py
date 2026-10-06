@@ -125,6 +125,7 @@ class Escena(Estricto):
     anillos: list[Union[str, Anillo]] = []
     efectos: list[Literal["impacto", "whoosh", "pop"]] = []
     pausa: float = Field(0.35, ge=0, le=3, description="silencio al final de la escena")
+    emocion: float | None = Field(None, ge=0.25, le=1.5, description="chatterbox: intensidad de esta escena (si no, la del episodio)")
 
     @field_validator("titular")
     @classmethod
@@ -171,9 +172,11 @@ class Forma(Estricto):
 
 class Voz(Estricto):
     motor: Literal["kokoro", "chatterbox", "archivos", "estimar"] = "kokoro"
-    voz: str = "em_alex"
-    velocidad: float = Field(1.05, ge=0.7, le=1.4)
-    referencia: str | None = None
+    voz: str = "em_alex"                                   # solo kokoro
+    velocidad: float = Field(1.05, ge=0.7, le=1.4)         # solo kokoro
+    referencia: str | None = Field(None, description="chatterbox: WAV de 10-30 s de la voz a clonar (por defecto, una voz en español)")
+    emocion: float = Field(0.75, ge=0.25, le=1.5, description="chatterbox: 0.5 neutral, 0.75 intensa, 1.0 dramática")
+    cfg: float = Field(0.35, ge=0, le=1, description="chatterbox: más bajo = ritmo más pausado")
 
 
 class Publicacion(Estricto):
