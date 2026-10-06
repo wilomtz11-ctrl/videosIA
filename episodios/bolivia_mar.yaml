@@ -1,0 +1,147 @@
+# ¿Por qué Bolivia no tiene mar? — episodio 1 (motor 3D)
+# Datos verificados: ver publicacion.fuentes al final.
+titulo: ¿Por qué Bolivia no tiene mar?
+formato: vertical
+region: [-80, -36, -54, -8]          # zona con relieve en alta resolución (lon0, lat0, lon1, lat1)
+exageracion: 5
+voz: {motor: kokoro, voz: em_alex, velocidad: 1.05}
+musica: musica/fondo.mp3             # opcional (Biblioteca de audio de YouTube)
+
+mapas:
+  hoy: 0          # fronteras actuales (Natural Earth)
+  "1878": 1878    # fronteras de 1878 (historical-basemaps)
+
+formas:
+  bolivia: {pais: Bolivia}
+  litoral: {op: interseccion, a: "1878:Bolivia", b: "2010:Chile", filtro: [-72, -25.5, -66, -20.5]}
+  tarapaca: {op: interseccion, a: "1878:Peru", b: "2010:Chile", filtro: [-72, -22, -66, -17]}
+
+lugares:
+  Océano Pacífico: [-75.5, -22.5]
+
+escenas:
+  - id: gancho
+    voz: Bolivia tiene una armada, con barcos y miles de marinos. Pero no tiene ni un metro de costa. ¿Cómo es posible?
+    camara: {ir_a: Bolivia, altura: pais}
+    mapa: hoy
+    anio: HOY
+    titular: {texto: "Bolivia tiene armada...\npero NO tiene mar", estilo: alerta}
+    etiquetas: [Bolivia, Chile, Perú, Brasil, Argentina]
+    resaltar: [{forma: bolivia, color: amarillo, retraso: 1.5}]
+
+  - id: promesa
+    voz: La respuesta empieza con un impuesto de diez centavos... y termina en una guerra que, casi siglo y medio después, todavía se discute.
+    camara: {ir_a: [-66, -21], altura: 1.15}
+    titular: {texto: "10 centavos → 1 guerra", estilo: dato, retraso: 1.0}
+    etiquetas: [Bolivia, Chile, Perú, Argentina]
+
+  - id: nacimiento
+    voz: Volvamos a 1825. Bolivia nace como país independiente... y sí tenía mar. Unos cuatrocientos kilómetros de costa sobre el océano Pacífico.
+    camara: {ir_a: [-68.4, -21.6], altura: 0.5, inclinacion: 30, rumbo: 60}
+    mapa: "1878"
+    anio: 1825
+    titular: {texto: Unos 400 km de costa, estilo: dato, retraso: 3.5}
+    etiquetas: [Bolivia, Océano Pacífico]
+    resaltar: [{forma: litoral, color: azul, retraso: 2.5}]
+
+  - id: atacama
+    voz: Esa costa estaba en el desierto de Atacama, uno de los lugares más secos del planeta. Durante décadas, parecía no valer nada.
+    camara: {ir_a: [-69.4, -23.4], altura: cerca, inclinacion: 58, rumbo: 75}
+    etiquetas: [{texto: DESIERTO DE ATACAMA, en: [-69.9, -22.9], estilo: pais, tam: 40}]
+
+  - id: salitre
+    voz: Hasta que encontraron salitre, un fertilizante tan valioso que lo llamaban el oro blanco.
+    camara: {ir_a: [-70.0, -23.6], altura: 0.15, inclinacion: 60, rumbo: 80}
+    anio: 1870
+    titular: {texto: "Salitre: el «oro blanco»", estilo: dato, retraso: 1.2}
+    etiquetas: [Antofagasta]
+
+  - id: tratado_1874
+    voz: Empresas chilenas y británicas llegaron a explotarlo. Y en 1874, Bolivia firmó un tratado. No subiría sus impuestos durante veinticinco años.
+    camara: {ir_a: Antofagasta, altura: 0.32, inclinacion: 40, rumbo: 60}
+    anio: 1874
+    titular: {texto: "Tratado de 1874:\n25 años sin nuevos impuestos", estilo: nota, retraso: 3.0}
+    etiquetas: [Antofagasta]
+
+  - id: impuesto
+    voz: Pero en 1878, Bolivia le cobró diez centavos más por cada quintal de salitre a la principal empresa salitrera. La empresa se negó a pagar.
+    camara: {ir_a: Antofagasta, altura: 0.26, inclinacion: 45, rumbo: 70}
+    anio: 1878
+    titular: {texto: "+10 centavos por quintal", estilo: alerta, retraso: 1.2}
+    etiquetas: [Antofagasta]
+    anillos: [{en: Antofagasta, color: rojo, retraso: 3.0}]
+
+  - id: remate
+    voz: Bolivia ordenó rematar la empresa. Y el catorce de febrero de 1879, el mismo día del remate, tropas chilenas desembarcaron en Antofagasta.
+    camara: {ir_a: [-70.2, -28.6], altura: 0.85, inclinacion: 15, rumbo: 5}
+    anio: 1879
+    titular: {texto: 14 de febrero de 1879, estilo: alerta, retraso: 3.6}
+    etiquetas: [Valparaíso, Antofagasta]
+    flechas: [{de: [-72.6, -33.0], a: [-70.6, -23.7], color: rojo, retraso: 3.6, duracion: 2.0}]
+    efectos: [impacto]
+
+  - id: guerra
+    voz: Perú tenía un tratado secreto de defensa con Bolivia. Así estalló la Guerra del Pacífico. Chile contra Perú y Bolivia.
+    camara: {ir_a: [-68.6, -20.8], altura: 0.75, inclinacion: 10}
+    titular: {texto: "GUERRA DEL PACÍFICO\n1879 – 1884", estilo: alerta, retraso: 2.8}
+    etiquetas: [Bolivia, Perú, {texto: CHILE, en: [-70.7, -26.3], estilo: pais}]
+    resaltar:
+      - {forma: litoral, color: rojo, retraso: 2.8}
+      - {forma: tarapaca, color: rojo, retraso: 2.8}
+
+  - id: calama
+    voz: El primer combate fue en Calama, el veintitrés de marzo. Allí murió Eduardo Abaroa, hoy héroe nacional de Bolivia.
+    camara: {ir_a: Calama, altura: cerca, inclinacion: 55, rumbo: 65}
+    titular: {texto: 23 de marzo de 1879, estilo: nota, retraso: 1.0}
+    etiquetas: [Calama]
+    anillos: [{en: Calama, color: amarillo, retraso: 1.0}]
+
+  - id: resultado
+    voz: Chile ganó la guerra. Bolivia perdió todo su litoral... y Perú perdió Tarapacá y, años después, Arica.
+    camara: {ir_a: [-68.8, -21.0], altura: 0.8, inclinacion: 12}
+    anio: 1884
+    titular: {texto: Bolivia se queda sin mar, estilo: alerta, retraso: 1.2}
+    etiquetas: [Bolivia, Perú, {texto: CHILE, en: [-70.7, -26.3], estilo: pais}]
+    pintar:
+      - {forma: litoral, color: rojo, retraso: 1.4}
+      - {forma: tarapaca, color: rojo, retraso: 4.0}
+    efectos: [impacto]
+
+  - id: tratado_1904
+    voz: Pero la historia no terminó ahí. En 1904, un tratado de paz lo hizo definitivo. A cambio, Chile construyó un tren de Arica a La Paz, que sube a más de cuatro mil metros de altura.
+    camara: {ir_a: [-69.4, -17.7], altura: 0.2, inclinacion: 58, rumbo: 70}
+    mapa: hoy
+    anio: 1904
+    titular: {texto: Tratado de Paz de 1904, estilo: nota, retraso: 2.0}
+    etiquetas: [Arica, La Paz]
+    flechas: [{de: Arica, a: La Paz, color: azul, retraso: 6.0, duracion: 2.4}]
+
+  - id: la_haya
+    voz: Bolivia nunca dejó de reclamar. En 2013 demandó a Chile ante la Corte Internacional de Justicia. Y en 2018 llegó el fallo, doce votos contra tres. Chile no estaba obligado a negociar.
+    camara: {ir_a: [-65.5, -19.5], altura: 0.95}
+    anio: 2018
+    titular: {texto: "La Haya, 2018:\n12 votos contra 3", estilo: dato, retraso: 7.0}
+    etiquetas: [Bolivia, Chile, Perú]
+    resaltar: [{forma: bolivia, color: amarillo, retraso: 1.0}]
+
+  - id: cierre
+    voz: Por eso, cada veintitrés de marzo, Bolivia conmemora el Día del Mar... y su armada sigue navegando en el lago Titicaca. ¿Qué país quieres que te explique después? Te leo en los comentarios.
+    camara: {ir_a: Lago Titicaca, altura: cerca, inclinacion: 50, rumbo: 25}
+    anio: HOY
+    titular: {texto: "¿Qué país sigue?\n¡Comenta!", estilo: nota, retraso: 7.0}
+    etiquetas: [{texto: Lago Titicaca, en: [-69.6, -16.55], estilo: agua, tam: 40}]
+    anillos: [{en: Lago Titicaca, color: azul, retraso: 3.0}]
+
+publicacion:
+  titulo: ¿Por qué Bolivia no tiene mar? 🌊
+  descripcion: >
+    Bolivia nació con unos 400 km de costa en el desierto de Atacama. Un impuesto de 10 centavos al salitre
+    terminó en la Guerra del Pacífico (1879–1884), y con ella perdió su salida al mar. Te lo explico en 3D.
+  fuentes:
+    - "Corte Internacional de Justicia, Obligación de negociar un acceso al océano Pacífico (Bolivia c. Chile), fallo del 1 de octubre de 2018: https://www.icj-cij.org/case/153"
+    - "Encyclopaedia Britannica, War of the Pacific: https://www.britannica.com/event/War-of-the-Pacific"
+    - "Memoria Chilena, Ferrocarril Arica-La Paz (inaugurado en 1913): https://www.memoriachilena.gob.cl/602/w3-article-92273.html"
+    - "Pacto de Tregua (1884) y Tratado de 1904, El Orden Mundial: https://elordenmundial.com/bolivia-y-chile-mirando-hacia-el-mar/"
+    - "Tratado de Ancón (1883) y Tratado de Lima (1929): https://en.wikipedia.org/wiki/Treaty_of_Anc%C3%B3n"
+    - "Eduardo Abaroa y el Día del Mar (23 de marzo): https://en.wikipedia.org/wiki/Eduardo_Abaroa"
+  hashtags: ["#bolivia", "#historia", "#geografia", "#mapas", "#chile", "#peru", "#guerradelpacifico", "#sabiasque"]

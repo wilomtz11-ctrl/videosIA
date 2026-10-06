@@ -1,0 +1,12 @@
+{
+  "name": "motor3d",
+  "private": true,
+  "type": "module",
+  "description": "Motor 3D genérico (Three.js) que HyperFrames renderiza a MP4",
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

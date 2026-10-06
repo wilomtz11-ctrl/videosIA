@@ -6,3 +6,7 @@ musica/*
 !musica/LEEME.md
 prototipo_3d/assets/
 prototipo_3d/node_modules/
+build/
+modelos/
+motor3d/node_modules/
+.pytest_cache/

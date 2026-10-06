@@ -1,10 +1,10 @@
 """Construye un episodio: voz -> línea de tiempo -> audio -> video MP4 + descripción.
 
 Ejemplos:
-  python construir.py episodios/bolivia_mar.json --voz estimar          # vista previa rápida, sin voz
-  python construir.py episodios/bolivia_mar.json --voz kokoro           # voz gratis en CPU
-  python construir.py episodios/bolivia_mar.json --voz archivos         # tus WAV (grabados o de Colab)
-  python construir.py episodios/bolivia_mar.json --fotogramas 1 12 40   # solo PNG de esos segundos
+  python construir_2d.py episodios/bolivia_mar_2d.json --voz estimar          # vista previa rápida, sin voz
+  python construir_2d.py episodios/bolivia_mar_2d.json --voz kokoro           # voz gratis en CPU
+  python construir_2d.py episodios/bolivia_mar_2d.json --voz archivos         # tus WAV (grabados o de Colab)
+  python construir_2d.py episodios/bolivia_mar_2d.json --fotogramas 1 12 40   # solo PNG de esos segundos
 """
 import argparse
 import json

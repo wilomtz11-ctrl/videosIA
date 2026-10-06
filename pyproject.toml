@@ -1,0 +1,26 @@
+[project]
+name = "fabrica-videos"
+version = "0.2.0"
+description = "Fábrica de videos de mapas 3D: guion YAML -> MP4 con voz, subtítulos y relieve real"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "shapely>=2.0",
+  "pillow",
+  "soundfile",
+  "pyyaml",
+  "pydantic>=2.6",
+  "kokoro-onnx>=0.4",
+  "skia-python",          # solo para el motor 2D antiguo (videosia)
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+chatterbox = ["chatterbox-tts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 130
+target-version = "py310"

@@ -1,7 +1,10 @@
+# Instala todo con:  pip install -r requirements.txt   (o: pip install -e .[dev])
 numpy
 shapely>=2.0
-skia-python
+pillow
 soundfile
-# Voz (instala solo la que uses):
-#   kokoro>=0.9      -> además necesitas espeak-ng instalado en el sistema
-#   chatterbox-tts   -> mejor en GPU (Google Colab gratis)
+pyyaml
+pydantic>=2.6
+kokoro-onnx>=0.4
+skia-python
+# Opcional (voz clonada, mejor con GPU / Google Colab): chatterbox-tts

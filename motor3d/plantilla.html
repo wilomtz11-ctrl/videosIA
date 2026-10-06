@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es" data-resolution="{{RESOLUCION}}">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width={{ANCHO}}, height={{ALTO}}" />
+<style>
+  @font-face { font-family: "Montserrat"; font-weight: 800; src: url("fuentes/Montserrat-ExtraBold.ttf"); }
+  @font-face { font-family: "Montserrat"; font-weight: 700; src: url("fuentes/Montserrat-Bold.ttf"); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: {{ANCHO}}px; height: {{ALTO}}px; overflow: hidden; background: #000; }
+  #root { width: 100%; height: 100%; position: relative; font-family: "Montserrat", sans-serif; }
+  #escena, #capa { position: absolute; inset: 0; }
+  #capa { pointer-events: none; overflow: hidden; }
+  #capa::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 32%; background: linear-gradient(#000c, #0000); }
+  #capa::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 38%; background: linear-gradient(#0000, #0009); }
+  #credito { position: absolute; top: 2.1%; width: 100%; text-align: center; color: #c5ced6a8; font-weight: 700; font-size: 18px; z-index: 2; }
+  #anio { position: absolute; top: 7.5%; width: 100%; text-align: center; color: #FFD166; font-weight: 800; font-size: 150px;
+    letter-spacing: 2px; -webkit-text-stroke: 3px #0b1620; text-shadow: 0 8px 28px #000a; z-index: 2; }
+  #titular { position: absolute; top: 19.5%; left: 50%; transform: translateX(-50%); padding: 22px 34px; border-radius: 24px;
+    font-weight: 800; font-size: 54px; line-height: 1.12; text-align: center; white-space: pre-line; max-width: 92%;
+    width: max-content; box-shadow: 0 10px 30px #0008; z-index: 2; opacity: 0; }
+  .alerta { background: #C1121F; color: #fff; }
+  .dato { background: #FFD166; color: #14212B; }
+  .nota { background: #F4F1EA; color: #14212B; }
+  .etq { position: absolute; transform: translate(-50%, -50%); color: #fff; font-weight: 800; white-space: nowrap; opacity: 0;
+    text-shadow: 0 0 6px #000, 0 0 14px #000, 0 3px 4px #000; }
+  .etq.pais { letter-spacing: 3px; }
+  .etq.agua { color: #cfe8ff; font-weight: 700; font-style: italic; letter-spacing: 2px; }
+  .etq.punto { transform: translate(52px, -50%); }
+  .etq.punto::before { content: ""; position: absolute; left: -64px; top: 50%; width: 16px; height: 16px; margin-top: -8px;
+    border-radius: 50%; background: #fff; box-shadow: 0 0 0 4px #0b1620; }
+  .anillo { position: absolute; transform: translate(-50%, -50%); border: 8px solid; border-radius: 50%; opacity: 0;
+    box-shadow: 0 0 22px currentColor, inset 0 0 22px currentColor; }
+  .subs { position: absolute; top: 72%; left: 50%; transform: translateX(-50%); width: 92%; text-align: center; font-weight: 800;
+    font-size: 66px; line-height: 1.15; color: #fff; opacity: 0; z-index: 3;
+    -webkit-text-stroke: 12px #000; paint-order: stroke fill; }
+  .subs span.actual { color: #FFD166; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-no-timeline data-start="0" data-duration="{{DURACION}}" data-width="{{ANCHO}}" data-height="{{ALTO}}">
+  <div id="escena" class="clip" data-start="0" data-duration="{{DURACION}}" data-track-index="0" data-layout-allow-overflow></div>
+  <div id="capa" class="clip" data-start="0" data-duration="{{DURACION}}" data-track-index="1" data-layout-allow-overflow data-layout-allow-overlap>
+    <div id="credito">{{CREDITO}}</div>
+    <div id="anio"></div>
+    <div id="titular"></div>
+  </div>
+</div>
+<script type="module" src="motor.js"></script>
+</body>
+</html>

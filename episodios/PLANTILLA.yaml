@@ -1,0 +1,45 @@
+# Plantilla de episodio. Copia este archivo, cámbiale el nombre y llénalo.
+# Validar:   python -m fabrica validar episodios/mi_tema.yaml
+# Revisar:   python -m fabrica previa  episodios/mi_tema.yaml 1 10 30     (fotogramas sueltos, rápido)
+# Video:     python -m fabrica video   episodios/mi_tema.yaml
+
+titulo: ¿Por qué ...?                 # la pregunta-gancho
+formato: vertical                     # vertical (TikTok/Reels/Shorts) u horizontal (YouTube)
+region: [-80, -36, -54, -8]           # [lon0, lat0, lon1, lat1]: zona con relieve en alta resolución (máx. ~30°×30°)
+exageracion: 5                        # exageración vertical del relieve (1 = real)
+voz: {motor: kokoro, voz: em_alex, velocidad: 1.05}   # voces: em_alex, em_santa, ef_dora
+musica: musica/fondo.mp3              # opcional
+
+mapas:                                # mapas políticos disponibles (clave: año; 0 = actual)
+  hoy: 0
+  # "1878": 1878                      # años disponibles: ver github.com/aourednik/historical-basemaps/tree/master/geojson
+
+formas:                               # zonas para resaltar o pintar (máx. 8)
+  pais_a: {pais: Bolivia}             # país actual
+  # zona: {op: interseccion, a: "1878:Bolivia", b: "2010:Chile", filtro: [-72, -25.5, -66, -20.5]}
+
+lugares:                              # puntos propios (si un nombre no se encuentra solo)
+  # Mi lugar: [-70.0, -20.0]
+
+escenas:
+  - id: gancho                        # 1-2 s para enganchar: paradoja, dato sorprendente o pregunta
+    voz: Texto que dice la narración. La escena dura lo que dure la voz.
+    camara: {ir_a: Bolivia, altura: pais}   # ir_a: país, ciudad, lago, mar o [lon, lat]
+                                      # altura: espacio | globo | continente | pais | region | cerca | muy_cerca | número
+                                      # opcionales: inclinacion (0-75), rumbo (grados desde el norte), duracion_movimiento
+    mapa: hoy
+    anio: HOY                         # número (cuenta animada) o texto
+    titular: {texto: "Frase corta\nque engancha", estilo: alerta}   # alerta | dato | nota
+    etiquetas: [Bolivia, Chile]       # nombres, o {texto: ..., en: [lon, lat], estilo: pais|punto|agua, tam: 40}
+    resaltar: [pais_a]                # brillo que palpita: forma o {forma, color, retraso}
+    # pintar: [{forma: zona, color: rojo, retraso: 1.0}]    # cambio de dueño (queda pintado)
+    # flechas: [{de: Valparaíso, a: Antofagasta, color: rojo, retraso: 2}]
+    # anillos: [Calama]               # círculo que palpita
+    # efectos: [impacto]              # impacto | whoosh | pop (whoosh y pop también salen solos)
+
+publicacion:
+  titulo: ¿Por qué ...? 🌍
+  descripcion: Resumen de 2-3 líneas.
+  fuentes:                            # obligatorio: cada dato del guion con su fuente
+    - "Fuente confiable: https://..."
+  hashtags: ["#historia", "#geografia", "#mapas"]

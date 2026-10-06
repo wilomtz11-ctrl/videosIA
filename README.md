@@ -1,115 +1,103 @@
-# Geografía explicada · fábrica de videos con mapas animados
+# Geografía explicada · fábrica de videos de mapas 3D
 
-Hace videos de mapas animados a partir de un archivo JSON por episodio: la voz marca el ritmo, la cámara
-se mueve sola entre escenas y salen subtítulos palabra por palabra, efectos de sonido y una descripción con fuentes.
+Escribes (o pegas) un guion en YAML y sale un video listo para publicar: globo terráqueo 3D, relieve real,
+mapas históricos, cámara que vuela, voz, subtítulos palabra por palabra, efectos de sonido y una descripción con fuentes.
 
-- **Vertical 1080×1920** para TikTok, Reels y Shorts, o **horizontal 1920×1080** para YouTube largo.
-- Sin costo por video: todo es código y datos abiertos.
-- Primer episodio: `episodios/bolivia_mar.json` → *¿Por qué Bolivia no tiene mar?* (~90 s).
+- **Vertical 1080×1920** (TikTok, Reels, Shorts) u **horizontal 1920×1080** (YouTube).
+- **Todo libre y gratuito**: código abierto y datos abiertos, sin pagar por video.
+- Primer episodio: [`episodios/bolivia_mar.yaml`](episodios/bolivia_mar.yaml) → *¿Por qué Bolivia no tiene mar?* (~2:13).
 
-La estrategia de nicho, las plataformas y los riesgos están en [ESTRATEGIA.md](ESTRATEGIA.md).
-
-**Nuevo:** motor 3D (globo terráqueo, relieve real, cámara que vuela) en [prototipo_3d/](prototipo_3d/LEEME.md), con HyperFrames + Three.js, todo libre.
+Estrategia de nicho, plataformas, riesgos y tecnologías elegidas: [ESTRATEGIA.md](ESTRATEGIA.md).
 
 ---
 
 ## 1. Instalar (una vez)
 
-1. **Python 3.10+** y **ffmpeg** en el PATH.
-   Windows: `winget install Gyan.FFmpeg`. Mac: `brew install ffmpeg`.
-2. En la carpeta del proyecto:
-   ```bash
-   pip install -r requirements.txt
-   ```
-Las fronteras históricas se descargan solas la primera vez, en `datos/`.
+Requisitos: **Python 3.10+**, **Node.js 22+** y **ffmpeg** en el PATH
+(Windows: `winget install OpenJS.NodeJS Gyan.FFmpeg`; Mac: `brew install node ffmpeg`).
+
+```bash
+pip install -r requirements.txt
+cd motor3d && npm install && npx playwright install chromium && cd ..
+```
+
+La primera vez se descargan solos el modelo de voz (~350 MB), el relieve de la región y los mapas.
+Todo queda en caché (`modelos/`, `datos/`).
 
 ## 2. Hacer un video
 
 ```bash
-# Vista previa rápida (sin voz, con la duración estimada)
-python construir.py episodios/bolivia_mar.json
-
-# Revisar fotogramas sueltos (segundos 1, 20 y 45) antes de renderizar todo
-python construir.py episodios/bolivia_mar.json --fotogramas 1 20 45
-
-# Video final con voz
-python construir.py episodios/bolivia_mar.json --voz kokoro      # gratis, en tu CPU
-python construir.py episodios/bolivia_mar.json --voz archivos    # tus WAV (grabados o de Colab)
-
-# Versión horizontal para YouTube
-python construir.py episodios/bolivia_mar.json --formato horizontal
+python -m fabrica validar episodios/bolivia_mar.yaml               # revisa el guion (instantáneo)
+python -m fabrica previa  episodios/bolivia_mar.yaml 2 30 60 90    # fotogramas sueltos en salida/previa/ (segundos)
+python -m fabrica video   episodios/bolivia_mar.yaml               # video final: salida/bolivia_mar.mp4
+python -m fabrica video   episodios/bolivia_mar.yaml --borrador    # más rápido (sin antialiasing, calidad baja)
 ```
 
-El resultado queda en `salida/`: el MP4, la mezcla de audio y `*_descripcion.txt`, con el título, las fuentes y los hashtags listos para copiar.
+Junto al video sale `salida/<tema>_descripcion.txt` con el título, las fuentes, los créditos y los hashtags.
 
-## 3. Voz (sin tarjeta NVIDIA)
+**Tiempos de referencia** (4 núcleos, **sin** tarjeta gráfica): voz ~3× más rápida que tiempo real; render
+~1 fotograma/s (≈1 h para 2 minutos de video). Con GPU, aunque sea integrada, HyperFrames la usa sola y va varias veces más rápido.
+También puedes renderizar en Google Colab con GPU gratis: [`colab.ipynb`](colab.ipynb).
 
-| Opción | Calidad | Dónde corre | Cómo |
+## 3. Crear un episodio nuevo
+
+Copia [`episodios/PLANTILLA.yaml`](episodios/PLANTILLA.yaml) (explica cada campo). Lo esencial de una escena:
+
+```yaml
+- voz: Lo que dice la narración. La escena dura lo que dure la voz.
+  camara: {ir_a: Calama, altura: cerca, inclinacion: 55, rumbo: 65}   # nombres o [lon, lat]
+  anio: 1879
+  titular: {texto: 23 de marzo de 1879, estilo: nota}
+  etiquetas: [Calama]
+  anillos: [Calama]
+```
+
+Los nombres ("Bolivia", "Calama", "Lago Titicaca", "Océano Pacífico") se convierten solos en coordenadas.
+Las **formas** resaltan o "pintan" zonas, incluso calculadas: lo que en 1878 era de Bolivia y hoy es de Chile.
+
+Recetas de retención del ejemplo: paradoja en la primera frase, bucle abierto ("empieza con 10 centavos y termina
+en una guerra"), un corte cada 5–9 s, reenganche a mitad del video y cierre con pregunta para comentarios.
+
+Con Claude: pega la idea o el guion en una sesión; `CLAUDE.md` le explica cómo investigar, escribir el YAML y renderizar.
+
+## 4. Voz
+
+| Motor | Calidad | Dónde corre | Uso |
 |---|---|---|---|
-| **Chatterbox en Google Colab** | ★★★★★, clona tu voz | GPU gratis de Google | Abre `colab_voz.ipynb` en [colab.research.google.com](https://colab.research.google.com) (Archivo → Subir cuaderno) y ejecuta las celdas |
-| **Kokoro** | ★★★ | Tu CPU, rápido | `pip install kokoro` + instalar [espeak-ng](https://github.com/espeak-ng/espeak-ng/releases); luego `--voz kokoro` (voces: `em_alex`, `ef_dora`, `em_santa`) |
-| **Tu propia voz** | La mejor para monetizar | Micrófono | Graba un WAV por escena en `voz/<episodio>/NN_<id>.wav` y usa `--voz archivos` |
-| Chatterbox en CPU | ★★★★★ | Tu CPU, lento (varios minutos) | `pip install chatterbox-tts`; luego `--voz chatterbox --referencia mi_voz.wav` |
+| `kokoro` (por defecto) | ★★★ | CPU | Voces `em_alex`, `em_santa`, `ef_dora`. Apache 2.0 |
+| `chatterbox` | ★★★★★, clona tu voz | GPU (Colab gratis) | `voz: {motor: chatterbox, referencia: mi_voz.wav}`. MIT |
+| `archivos` | La mejor: tu voz | Micrófono | Un WAV por escena en `voz/<tema>/NN_<id>.wav` |
+| `estimar` | Sin voz | — | Para revisar rápido: `--voz estimar` |
 
-Licencias: Chatterbox es MIT y Kokoro es Apache 2.0; las dos permiten uso comercial. **No uses** Piper (la mayoría de sus voces
-en español son no comerciales), Coqui XTTS (licencia no comercial) ni Edge-TTS (uso no oficial de un servicio de Microsoft).
-
-Si cambias el texto de una escena, solo se regenera esa voz.
-
-## 4. Crear un episodio nuevo
-
-Copia `episodios/bolivia_mar.json` y edítalo. Las piezas:
-
-| Campo | Para qué |
-|---|---|
-| `region` | `[lon_min, lat_min, lon_max, lat_max]`: zona de la que se cargan fronteras |
-| `mapas` | Estados del mapa: `{"1878": {"anio": 1878}, "hoy": {"anio": 2010}}`. Años disponibles: [lista](https://github.com/aourednik/historical-basemaps/tree/master/geojson) |
-| `colores` | Color por país (nombre en inglés, como en los datos) |
-| `formas` | Zonas calculadas: `{"op": "interseccion", "a": "1878:Bolivia", "b": "2010:Chile", "filtro": [...]}` = lo que era de Bolivia en 1878 y hoy es de Chile. Ops: `interseccion`, `diferencia`, `union`, `pais` |
-| `grupos_etiquetas` | Etiquetas reutilizables; en una escena se citan como `"@paises"` |
-| `escenas` | La historia, en orden (ver abajo) |
-| `publicacion` | Título, descripción, fuentes y hashtags para la descripción |
-
-Cada escena:
-
-```json
-{
-  "id": "resultado",
-  "narracion": "Lo que dice la voz. La duración de la escena sale de este audio.",
-  "mapa": "1878",                       // si cambia respecto a la escena anterior → fundido
-  "anio": 1884,                         // número (cuenta animada) o texto ("HOY")
-  "camara": {"centro": [-67.5, -20.5], "alto": 31, "mov": 1.4},   // alto = grados visibles en vertical
-  "texto": {"texto": "Titular en pantalla", "estilo": "alerta|nota|dato", "retraso": 1.0},
-  "etiquetas": ["@paises", {"texto": "Arica", "lon": -70.3, "lat": -18.5, "estilo": "punto|claro|pais"}],
-  "destacar": [{"forma": "litoral", "color": "#4CC9F0", "retraso": 1.0}],   // brillo que palpita
-  "pintar":   [{"forma": "litoral", "color": "#E5534B", "retraso": 0.9}],   // cambio de dueño (persiste)
-  "anillos":  [{"lon": -70.4, "lat": -23.6, "color": "#FF4D4F", "radio": 80}],
-  "flechas":  [{"de": [-72.3, -33.0], "a": [-70.7, -23.9], "color": "#FF4D4F", "curva": -0.25}],
-  "efectos":  ["impacto"]                // además de whoosh y pop, que son automáticos
-}
-```
-
-Truco: renderiza con `--fotogramas` para ajustar posiciones y encuadres en segundos, y deja el video completo para el final.
-
-## 5. Estructura
+## 5. Cómo está hecho
 
 ```
-construir.py          programa principal
-videosia/geo.py       fronteras históricas, caché y formas derivadas
-videosia/render.py    dibujo de cada fotograma (Skia)
-videosia/linea_tiempo.py  cámara, fundidos, subtítulos y efectos en el tiempo
-videosia/voz.py       motores de voz
-videosia/audio.py     efectos sintetizados y mezcla con música
-episodios/            un JSON por video
-colab_voz.ipynb       voz con GPU gratis en Google Colab
-fuentes/              Montserrat (licencia OFL)
-demo_original/        la primera demo (Sudamérica, 30 s)
+episodios/*.yaml ─► fabrica (Python) ──────────────────────────────► build/<tema>/ ─► HyperFrames ─► MP4 + audio
+                    validar · lugares · relieve · capas · voz ·        escena.json +    Chromium, 4 procesos
+                    línea de tiempo · audio                            motor3d/motor.js
 ```
 
-## Créditos y licencias de datos
+- **Python** tiene toda la lógica de tiempos (probada con `pytest`); el **motor 3D** (Three.js) solo dibuja
+  `escena.json` en función del tiempo, así cada fotograma sale idéntico en cada render.
+- La textura de alta resolución se fabrica con el color de NASA Blue Marble y el sombreado del relieve
+  (AWS Terrain Tiles); el relieve se desplaza en la GPU; las zonas se iluminan con máscaras en el shader.
 
-- Fronteras: [historical-basemaps](https://github.com/aourednik/historical-basemaps), de André Ourednik (GPL-3.0). Son aproximadas;
-  el crédito aparece en cada video. Hay errores conocidos (por ejemplo, en los mapas de 1880 y 1900 Bolivia todavía tiene costa),
-  por eso el episodio de Bolivia usa 1878 y 2010 y calcula las zonas perdidas.
-- Tipografía: [Montserrat](https://github.com/JulietaUla/Montserrat) (SIL Open Font License).
-- Efectos de sonido: sintetizados por el propio código, sin derechos de terceros.
+| Pieza | Herramienta | Licencia |
+|---|---|---|
+| Render HTML → MP4 determinista | [HyperFrames](https://github.com/heygen-com/hyperframes) | Apache 2.0 |
+| 3D | [Three.js](https://threejs.org) | MIT |
+| Voz | [Kokoro-82M (ONNX)](https://github.com/thewh1teagle/kokoro-onnx) | Apache 2.0 / MIT |
+| Relieve | [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles) (Mapzen) | Libre con atribución |
+| Imagen satelital | NASA Blue Marble | Dominio público |
+| Fronteras y lugares | [Natural Earth](https://www.naturalearthdata.com) | Dominio público |
+| Mapas históricos | [historical-basemaps](https://github.com/aourednik/historical-basemaps) | GPL-3.0 |
+| Tipografía | Montserrat | OFL |
+
+## 6. Desarrollo
+
+```bash
+python -m pytest -q            # tests
+ruff check fabrica tests       # estilo
+```
+
+El motor 2D original (Skia) sigue disponible: `python construir_2d.py episodios/bolivia_mar_2d.json`.

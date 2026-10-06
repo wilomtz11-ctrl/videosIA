@@ -76,3 +76,23 @@ Más adelante, un canal en inglés con el mismo código: se produce casi gratis 
 - [Canales de geografía sin rostro 2026](https://blog.autonolab.com/niches/2026-01-16-faceless-youtube-geography/)
 - [Retenciones de impuestos de EE. UU. a creadores extranjeros](https://pbl.legal/insights/tax-guide-international-creators-youtubers/)
 - [Chatterbox](https://huggingface.co/ResembleAI/chatterbox) · [Licencias de Piper y Coqui](https://www.promptquorum.com/power-local-llm/local-tts-voice-cloning-piper-coqui-xtts)
+
+## Tecnologías (investigación de octubre 2026)
+
+Criterio: lo mejor disponible **que sea libre y gratuito**, probado en la práctica (velocidad medida sin GPU).
+
+| Opción | Veredicto |
+|---|---|
+| **HyperFrames** (HeyGen, Apache 2.0, abril 2026) | ✅ Elegido. HTML → MP4 determinista, adaptador para Three.js (`hf-seek` + `waitUntil`), procesos en paralelo, verificador de diseño |
+| **Three.js** (MIT) | ✅ Motor 3D: globo, relieve desplazado en GPU, máscaras en shader. ~0.1 s/fotograma sin GPU |
+| **Kokoro-82M ONNX** (Apache 2.0) | ✅ Voz en CPU, 3× tiempo real, 3 voces en español |
+| Remotion | ❌ Gratis para personas, pero no es software libre (source-available) |
+| GSAP | ❌ Gratis pero con licencia propia (no libre) |
+| MapLibre GL (BSD) | Relieve espectacular, pero sin GPU tarda 20–60 s/fotograma. Opción para máquinas con GPU |
+| deck.gl (MIT) | Su capa de relieve no funciona en vista de globo |
+| Motion Canvas / Revideo (MIT) | Buenos para 2D; Revideo con desarrollo en pausa |
+| Blender (GPL) | Calidad de cine, demasiado lento sin GPU |
+| Piper / Coqui XTTS / Edge-TTS | ❌ Voces no comerciales o uso no oficial de un servicio |
+
+Imágenes satelitales de mayor resolución para usar en una máquina con acceso: NASA Blue Marble 21600×10800 y
+NASA GIBS (dominio público), Sentinel-2 cloudless de EOX (CC BY 4.0 en ediciones 2018+; la de 2016 es no comercial).
