@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="es" data-resolution="portrait">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1080, height=1920" />
+<style>
+  @font-face { font-family: "Montserrat"; font-weight: 800; src: url("assets/Montserrat-ExtraBold.ttf"); }
+  @font-face { font-family: "Montserrat"; font-weight: 700; src: url("assets/Montserrat-Bold.ttf"); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+  #root { width: 100%; height: 100%; position: relative; font-family: "Montserrat", sans-serif; }
+  #escena { position: absolute; inset: 0; }
+  #capa { position: absolute; inset: 0; pointer-events: none; }
+  /* degradado superior para que se lea el texto */
+  #capa::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 560px;
+    background: linear-gradient(#000c, #0000); }
+  #anio { position: absolute; top: 150px; width: 100%; text-align: center; color: #FFD166; font-weight: 800;
+    font-size: 150px; letter-spacing: 2px; -webkit-text-stroke: 3px #0b1620; text-shadow: 0 8px 28px #000a; }
+  #titular { position: absolute; top: 360px; left: 50%; transform: translateX(-50%); padding: 22px 34px;
+    border-radius: 24px; font-weight: 800; font-size: 56px; line-height: 1.12; text-align: center;
+    white-space: pre; box-shadow: 0 10px 30px #0008; }
+  .alerta { background: #C1121F; color: #fff; }
+  .dato { background: #FFD166; color: #14212B; }
+  .etq { position: absolute; transform: translate(-50%, -50%); color: #fff; font-weight: 800;
+    letter-spacing: 3px; white-space: nowrap; text-shadow: 0 0 6px #000, 0 0 14px #000, 0 3px 4px #000; }
+  .punto::before { content: ""; position: absolute; left: -26px; top: 50%; width: 16px; height: 16px;
+    margin-top: -8px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 4px #0b1620; }
+  #credito { position: absolute; top: 40px; width: 100%; text-align: center; color: #c5ced6b0;
+    font-weight: 700; font-size: 18px; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-no-timeline data-start="0" data-duration="14" data-width="1080" data-height="1920">
+  <div id="escena" class="clip" data-start="0" data-duration="14" data-track-index="0"></div>
+  <div id="capa" class="clip" data-start="0" data-duration="14" data-track-index="1">
+    <div id="credito">Relieve: AWS Terrain Tiles · Imagen: NASA Blue Marble · Fronteras: Natural Earth</div>
+    <div id="anio"></div>
+    <div id="titular"></div>
+    <div id="etq-bolivia" class="etq" style="font-size:64px">BOLIVIA</div>
+    <div id="etq-chile" class="etq" style="font-size:46px">CHILE</div>
+    <div id="etq-peru" class="etq" style="font-size:46px">PERÚ</div>
+    <div id="etq-litoral" class="etq" style="font-size:40px;color:#9BE7FF">LITORAL BOLIVIANO</div>
+    <div id="etq-pacifico" class="etq" style="font-size:38px;color:#cfe8ff;font-weight:700">OCÉANO PACÍFICO</div>
+    <div id="etq-antofagasta" class="etq punto" style="font-size:36px;transform:translate(0,-50%)">Antofagasta</div>
+  </div>
+  <audio id="sonido" data-start="0" data-duration="14" data-track-index="2" src="assets/efectos.wav"></audio>
+</div>
+
+<script type="module">
+import * as THREE from './assets/three.module.js';
+window.THREE = THREE;   // HyperFrames espera a que terminen las cargas de THREE.DefaultLoadingManager
+
+const W = 1080, H = 1920, R_TIERRA = 6371000;
+const deg = Math.PI / 180;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.getElementById('escena').appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, W / H, 0.001, 100);
+
+// ---------- utilidades ----------
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const suave = x => { x = clamp01(x); return x * x * x * (x * (6 * x - 15) + 10); };
+const rampa = (t, a, d) => suave((t - a) / d);
+const lerp = (a, b, k) => a + (b - a) * k;
+function v3(lon, lat, r = 1) {
+  const f = lat * deg, l = lon * deg;
+  return new THREE.Vector3(r * Math.cos(f) * Math.sin(l), r * Math.sin(f), r * Math.cos(f) * Math.cos(l));
+}
+let semilla = 11;
+const azar = () => (semilla = (semilla * 16807) % 2147483647) / 2147483647;   // determinista
+
+// ---------- carga de datos (gestionada por DefaultLoadingManager) ----------
+const tl = new THREE.TextureLoader(), fl = new THREE.FileLoader();
+const cargarJSON = u => fl.setResponseType('json').loadAsync(u);
+const [texMarble, texRelieve, texMasc, region, paises, alturasBuf] = await Promise.all([
+  tl.loadAsync('./assets/blue-marble.jpg'), tl.loadAsync('./assets/textura.jpg'), tl.loadAsync('./assets/mascaras.png'),
+  cargarJSON('./assets/region.json'), cargarJSON('./assets/paises.json'),
+  new THREE.FileLoader().setResponseType('arraybuffer').loadAsync('./assets/relieve.bin'),
+]);
+for (const t of [texMarble, texRelieve]) { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; }
+const [LON0, LAT0, LON1, LAT1] = region.region, N = region.rejilla;
+const alturas = new Float32Array(alturasBuf);
+function alturaEn(lon, lat) {   // metros, interpolación bilineal; 0 fuera de la región
+  if (lon < LON0 || lon > LON1 || lat < LAT0 || lat > LAT1) return 0;
+  const x = (lon - LON0) / (LON1 - LON0) * (N - 1), y = (LAT1 - lat) / (LAT1 - LAT0) * (N - 1);
+  const x0 = Math.floor(x), y0 = Math.floor(y), x1 = Math.min(N - 1, x0 + 1), y1 = Math.min(N - 1, y0 + 1);
+  const fx = x - x0, fy = y - y0, a = alturas[y0 * N + x0], b = alturas[y0 * N + x1], c = alturas[y1 * N + x0], d = alturas[y1 * N + x1];
+  return lerp(lerp(a, b, fx), lerp(c, d, fx), fy);
+}
+
+// ---------- Tierra ----------
+const uniformesGlobales = { uExag: { value: 0 }, uAlt: { value: 3 } };
+const tierra = new THREE.Mesh(new THREE.SphereGeometry(1, 256, 128),
+  new THREE.MeshStandardMaterial({ map: texMarble, roughness: 0.95, metalness: 0 }));
+tierra.rotation.y = -Math.PI / 2;
+scene.add(tierra);
+scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+const sol = new THREE.DirectionalLight(0xffffff, 2.0);
+scene.add(sol);
+
+// Atmósfera (fresnel): se desvanece al acercarse
+const atmosfera = new THREE.Mesh(new THREE.SphereGeometry(1.06, 128, 64), new THREE.ShaderMaterial({
+  side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+  uniforms: { uOpac: { value: 1 } },
+  vertexShader: `varying vec3 n; void main(){ n = normalize(normalMatrix*normal); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  fragmentShader: `uniform float uOpac; varying vec3 n; void main(){ float i = pow(0.72 - dot(n, vec3(0,0,1.)), 3.0); gl_FragColor = vec4(0.35,0.62,1.0,1.0)*i*1.7*uOpac; }`
+}));
+scene.add(atmosfera);
+
+// Estrellas
+const pe = [];
+for (let i = 0; i < 5000; i++) { const v = new THREE.Vector3(azar() - .5, azar() - .5, azar() - .5).normalize().multiplyScalar(40); pe.push(v.x, v.y, v.z); }
+const ge = new THREE.BufferGeometry(); ge.setAttribute('position', new THREE.Float32BufferAttribute(pe, 3));
+scene.add(new THREE.Points(ge, new THREE.PointsMaterial({ color: 0xffffff, size: 0.05 })));
+
+// ---------- Parche de relieve 3D (desplazamiento en la GPU) ----------
+const pos = new Float32Array(N * N * 3), uv = new Float32Array(N * N * 2), hAttr = new Float32Array(N * N);
+for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+  const k = j * N + i, u = i / (N - 1), v = j / (N - 1);
+  const p = v3(lerp(LON0, LON1, u), lerp(LAT1, LAT0, v), 1);
+  pos.set([p.x, p.y, p.z], 3 * k); uv.set([u, 1 - v], 2 * k); hAttr[k] = alturas[k];
+}
+const idx = [];
+for (let j = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) { const a = j * N + i; idx.push(a, a + N, a + 1, a + 1, a + N, a + N + 1); }
+const gParche = new THREE.BufferGeometry();
+gParche.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+gParche.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+gParche.setAttribute('h', new THREE.BufferAttribute(hAttr, 1));
+gParche.setIndex(idx);
+const uParche = {
+  ...uniformesGlobales, uTex: { value: texRelieve }, uMasc: { value: texMasc }, uT: { value: 0 },
+  uOpac: { value: 0 }, uBolBrillo: { value: 0 }, uBolAlza: { value: 0 }, uLitBrillo: { value: 0 }, uLitRojo: { value: 0 }, uLitAlza: { value: 0 },
+  uSol: { value: new THREE.Vector3(-0.4, 0.6, 0.7).normalize() },
+};
+const parche = new THREE.Mesh(gParche, new THREE.ShaderMaterial({
+  uniforms: uParche, transparent: true,
+  vertexShader: `
+    attribute float h; uniform float uExag, uBolAlza, uLitAlza; uniform sampler2D uMasc;
+    varying vec2 vUv; varying vec3 vN; varying vec3 vP;
+    void main(){
+      vUv = uv;
+      vec3 m = texture2D(uMasc, uv).rgb;
+      float r = 1.0004 + h * uExag / ${R_TIERRA}.0 + uBolAlza * m.r + uLitAlza * m.g;
+      vec3 p = normalize(position) * r;
+      vN = normalize(position); vP = p;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+    }`,
+  fragmentShader: `
+    uniform sampler2D uTex, uMasc; uniform float uT, uOpac, uBolBrillo, uLitBrillo, uLitRojo; uniform vec3 uSol;
+    varying vec2 vUv; varying vec3 vN; varying vec3 vP;
+    void main(){
+      vec3 c = texture2D(uTex, vUv).rgb;
+      vec3 m = texture2D(uMasc, vUv).rgb;
+      float pulso = 0.6 + 0.4 * sin(uT * 5.0);
+      c += vec3(1.0, 0.78, 0.18) * uBolBrillo * m.r * 0.22 * pulso;
+      float bordeB = smoothstep(0.15, 0.5, m.r) * (1.0 - smoothstep(0.5, 0.85, m.r));
+      c += vec3(1.0, 0.85, 0.35) * bordeB * uBolBrillo * 1.3;
+      c = mix(c, vec3(0.80, 0.13, 0.12), uLitRojo * m.g * 0.62);
+      c += vec3(0.15, 0.75, 1.0) * uLitBrillo * m.g * 0.55 * pulso;
+      // borde del litoral: línea brillante
+      float borde = smoothstep(0.15, 0.5, m.g) * (1.0 - smoothstep(0.5, 0.85, m.g));
+      c += vec3(0.6, 0.95, 1.0) * borde * uLitBrillo * 1.2;
+      float e = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
+      float a = smoothstep(0.0, 0.14, e);                      // bordes del parche se funden con el globo
+      gl_FragColor = vec4(pow(c, vec3(1.0/2.2)), a * uOpac);
+    }`
+}));
+scene.add(parche);
+
+// ---------- Fronteras actuales (pegadas al relieve) ----------
+const lp = [], lh = [];
+for (const f of paises.features) {
+  const g = f.geometry, polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+  for (const poly of polys) for (const ring of poly) for (let i = 0; i < ring.length - 1; i++) {
+    for (const [lo, la] of [ring[i], ring[i + 1]]) { const p = v3(lo, la, 1); lp.push(p.x, p.y, p.z); lh.push(alturaEn(lo, la)); }
+  }
+}
+const gl = new THREE.BufferGeometry();
+gl.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+gl.setAttribute('h', new THREE.Float32BufferAttribute(lh, 1));
+const uLineas = { ...uniformesGlobales, uOpac: { value: 0 } };
+scene.add(new THREE.LineSegments(gl, new THREE.ShaderMaterial({
+  uniforms: uLineas, transparent: true, depthWrite: false,
+  vertexShader: `attribute float h; uniform float uExag, uAlt;
+    void main(){ float r = 1.0012 + uAlt*0.0004 + h * uExag / ${R_TIERRA}.0; gl_Position = projectionMatrix*modelViewMatrix*vec4(normalize(position)*r,1.); }`,
+  fragmentShader: `uniform float uOpac; void main(){ gl_FragColor = vec4(1.,1.,1., uOpac); }`
+})));
+
+// ---------- Cámara: (lon, lat, altitud, inclinación, rumbo) ----------
+function ponerCamara(lon, lat, alt, incl, rumbo) {
+  const objetivo = v3(lon, lat, 1 + alturaEn(lon, lat) * uniformesGlobales.uExag.value / R_TIERRA);
+  const arriba = objetivo.clone().normalize();
+  const l = lon * deg, f = lat * deg;
+  const este = new THREE.Vector3(Math.cos(l), 0, -Math.sin(l));
+  const norte = new THREE.Vector3(-Math.sin(f) * Math.sin(l), Math.cos(f), -Math.sin(f) * Math.cos(l));
+  const rumboV = norte.clone().multiplyScalar(Math.cos(rumbo * deg)).add(este.clone().multiplyScalar(Math.sin(rumbo * deg)));
+  const p = incl * deg;
+  camera.position.copy(objetivo).addScaledVector(arriba, alt * Math.cos(p)).addScaledVector(rumboV, -alt * Math.sin(p));
+  camera.up.copy(arriba.clone().multiplyScalar(Math.sin(p)).addScaledVector(rumboV, Math.cos(p)).normalize());
+  camera.near = Math.max(0.0005, alt * 0.05); camera.far = alt + 6; camera.updateProjectionMatrix();
+  camera.lookAt(objetivo);
+  sol.position.copy(camera.position).add(arriba.clone().multiplyScalar(2)).add(este.clone().multiplyScalar(-1.5));
+}
+// Tomas clave: [segundo, lon, lat, altitud, inclinación, rumbo]
+const TOMAS = [
+  [0.0, -25, 8, 3.1, 0, 0],
+  [2.6, -42, -2, 2.9, 0, 0],
+  [5.6, -64.5, -18.6, 0.85, 0, 0],
+  [6.8, -64.6, -19.0, 0.80, 8, 0],
+  [9.6, -70.2, -22.6, 0.17, 52, 68],
+  [10.6, -70.0, -22.5, 0.165, 52, 66],
+  [14.0, -66.8, -19.8, 0.62, 20, 15],
+];
+function camaraEn(t) {
+  let i = 0; while (i < TOMAS.length - 2 && t > TOMAS[i + 1][0]) i++;
+  const a = TOMAS[i], b = TOMAS[i + 1], k = suave((t - a[0]) / (b[0] - a[0]));
+  const alt = Math.exp(lerp(Math.log(a[3]), Math.log(b[3]), k));
+  return [lerp(a[1], b[1], k), lerp(a[2], b[2], k), alt, lerp(a[4], b[4], k), lerp(a[5], b[5], k)];
+}
+
+// ---------- Capa de texto ----------
+const $ = id => document.getElementById(id);
+const ETQ = {
+  'etq-bolivia': [-64.6, -17.0], 'etq-chile': [-69.6, -24.8], 'etq-peru': [-73.5, -11.5],
+  'etq-litoral': [-68.9, -23.2], 'etq-pacifico': [-73.8, -24.5], 'etq-antofagasta': [-70.40, -23.65],
+};
+function etiqueta(id, alfa) {
+  const el = $(id), [lo, la] = ETQ[id];
+  const p = v3(lo, la, 1 + alturaEn(lo, la) * uniformesGlobales.uExag.value / R_TIERRA + 0.002);
+  const visible = p.clone().normalize().dot(camera.position.clone().sub(p)) > 0;
+  const s = p.project(camera);
+  el.style.left = ((s.x + 1) / 2 * W) + 'px';
+  el.style.top = ((1 - s.y) / 2 * H) + 'px';
+  const x = (s.x + 1) / 2 * W, y = (1 - s.y) / 2 * H;
+  // no invade la zona del año/titular ni se sale por los lados
+  const zona = clamp01((y - 600) / 80) * clamp01((x - 90) / 60) * clamp01((990 - x) / 60) * clamp01((1800 - y) / 60);
+  el.style.opacity = visible && s.z < 1 ? alfa * zona : 0;
+}
+function anio(t) {
+  if (t < 6.6) return 'HOY';
+  if (t < 7.6) return String(Math.round(lerp(2026, 1878, suave((t - 6.6) / 1.0))));
+  if (t < 10.4) return '1878';
+  return String(Math.round(lerp(1878, 1884, suave((t - 10.4) / 0.8))));
+}
+const TITULARES = [
+  [0.3, 5.6, '¿Por qué Bolivia\nno tiene mar?', 'alerta'],
+  [7.8, 10.2, 'Tenía 400 km de costa', 'dato'],
+  [10.6, 14.0, 'El litoral pasa a Chile', 'alerta'],
+];
+function titular(t) {
+  const el = $('titular');
+  const act = TITULARES.find(([a, b]) => t >= a && t < b);
+  if (!act) { el.style.opacity = 0; return; }
+  const [a, b, txt, clase] = act;
+  const k = clamp01((t - a) / 0.35);
+  const rebote = 1 + 0.12 * Math.sin(Math.PI * k) * (1 - k);
+  el.textContent = txt; el.className = clase;
+  el.style.opacity = Math.min(rampa(t, a, 0.2), 1 - rampa(t, b - 0.25, 0.25));
+  el.style.transform = `translateX(-50%) scale(${(0.8 + 0.2 * suave(k)) * rebote})`;
+}
+
+// ---------- Fotograma ----------
+function renderAt(t) {
+  uniformesGlobales.uExag.value = 6 * rampa(t, 4.5, 3.5);
+  uParche.uOpac.value = rampa(t, 3.4, 1.6);                 // el relieve "crece" al acercarnos
+  const [lo, la, alt, inc, rum] = camaraEn(t);
+  uniformesGlobales.uAlt.value = alt;
+  ponerCamara(lo, la, alt, inc, rum);
+  atmosfera.material.uniforms.uOpac.value = clamp01((alt - 0.25) / 0.6);
+  uLineas.uOpac.value = 0.55 * rampa(t, 3.0, 1.2);
+  uParche.uT.value = t;
+  uParche.uBolBrillo.value = rampa(t, 5.0, 0.8) * (1 - rampa(t, 7.2, 0.8));
+  uParche.uBolAlza.value = 0.003 * Math.sin(Math.PI * clamp01((t - 5.0) / 2.6));   // Bolivia se levanta y vuelve
+  uParche.uLitBrillo.value = rampa(t, 7.6, 0.6) * (1 - rampa(t, 10.4, 0.5));
+  uParche.uLitRojo.value = rampa(t, 10.5, 0.9);
+  uParche.uLitAlza.value = 0.0015 * Math.sin(Math.PI * clamp01((t - 10.3) / 0.9)); // "salto" al cambiar de dueño
+  tierra.rotation.y = -Math.PI / 2;
+  renderer.render(scene, camera);
+  $('anio').textContent = anio(t);
+  $('anio').style.opacity = rampa(t, 0.2, 0.4);
+  titular(t);
+  etiqueta('etq-bolivia', rampa(t, 5.2, 0.5) * (1 - rampa(t, 8.0, 0.4)) + rampa(t, 12.0, 0.5));
+  etiqueta('etq-peru', rampa(t, 5.6, 0.5) * (1 - rampa(t, 7.6, 0.4)));
+  etiqueta('etq-chile', rampa(t, 5.6, 0.5) * (1 - rampa(t, 7.6, 0.4)) + rampa(t, 11.0, 0.5));
+  etiqueta('etq-litoral', rampa(t, 8.0, 0.5) * (1 - rampa(t, 10.4, 0.4)));
+  etiqueta('etq-pacifico', rampa(t, 8.4, 0.5) * (1 - rampa(t, 12.5, 0.4)));
+  etiqueta('etq-antofagasta', rampa(t, 8.8, 0.5) * (1 - rampa(t, 12.5, 0.4)));
+}
+window.renderAt = renderAt;
+window.addEventListener('hf-seek', e => renderAt(e.detail.time));
+renderAt(window.__hfThreeTime || 0);
+</script>
+</body>
+</html>

@@ -9,6 +9,8 @@ se mueve sola entre escenas y salen subtítulos palabra por palabra, efectos de 
 
 La estrategia de nicho, las plataformas y los riesgos están en [ESTRATEGIA.md](ESTRATEGIA.md).
 
+**Nuevo:** motor 3D (globo terráqueo, relieve real, cámara que vuela) en [prototipo_3d/](prototipo_3d/LEEME.md), con HyperFrames + Three.js, todo libre.
+
 ---
 
 ## 1. Instalar (una vez)
