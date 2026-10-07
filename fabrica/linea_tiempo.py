@@ -88,7 +88,7 @@ def compilar(ep: Episodio, voces: list[dict], lugares: Lugares, info_capas: dict
             tg = buscar_frase(abs_pal, frase)
             if tg is None:
                 raise ValueError(f"escena '{esc.id}': el golpe '{frase}' no aparece tal cual en la narración")
-            golpes.append({"t": round(tg, 3), "texto": frase.upper() if len(frase) < 22 else frase})
+            golpes.append({"t": round(tg, 3), "texto": frase.upper() if len(frase) <= 32 else frase})
             out.efectos.append(("impacto", max(0, tg - 0.05), 0.55))
 
         # --- cámara ---
