@@ -149,3 +149,14 @@ def test_silabas_de_numeros():
 def test_plantilla_es_valida():
     import yaml
     Episodio.model_validate(yaml.safe_load((RAIZ / "episodios" / "PLANTILLA.yaml").read_text(encoding="utf-8")))
+
+
+def test_palabras_desde_alineacion_elevenlabs():
+    from fabrica.voz import palabras_desde_alineacion
+    texto = "Hola mundo, sí."
+    n = len(texto)
+    al = {"characters": list(texto), "character_start_times_seconds": [i * 0.1 for i in range(n)],
+          "character_end_times_seconds": [i * 0.1 + 0.1 for i in range(n)]}
+    p = palabras_desde_alineacion(texto, al)
+    assert [w["txt"] for w in p] == ["Hola", "mundo,", "sí."]
+    assert p[0]["t0"] == 0 and p[1]["t0"] == pytest.approx(0.5) and p[-1]["t1"] == pytest.approx(1.5)

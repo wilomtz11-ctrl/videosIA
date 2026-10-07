@@ -171,12 +171,15 @@ class Forma(Estricto):
 
 
 class Voz(Estricto):
-    motor: Literal["kokoro", "chatterbox", "archivos", "estimar"] = "kokoro"
-    voz: str = "em_alex"                                   # solo kokoro
+    motor: Literal["kokoro", "chatterbox", "elevenlabs", "archivos", "estimar"] = "kokoro"
+    voz: str = "em_alex"                                   # kokoro: nombre de voz; elevenlabs: id de la voz
     velocidad: float = Field(1.05, ge=0.7, le=1.4)         # solo kokoro
     referencia: str | None = Field(None, description="chatterbox: WAV de 10-30 s de la voz a clonar (por defecto, una voz en español)")
     emocion: float = Field(0.75, ge=0.25, le=1.5, description="chatterbox: 0.5 neutral, 0.75 intensa, 1.0 dramática")
     cfg: float = Field(0.35, ge=0, le=1, description="chatterbox: más bajo = ritmo más pausado")
+    modelo: str = Field("eleven_v3", description="elevenlabs: eleven_v3 (más expresivo) o eleven_multilingual_v2")
+    estabilidad: float = Field(0.4, ge=0, le=1, description="elevenlabs: más bajo = más emoción y variación")
+    estilo: float = Field(0.3, ge=0, le=1, description="elevenlabs: exageración del estilo de la voz")
 
 
 class Publicacion(Estricto):

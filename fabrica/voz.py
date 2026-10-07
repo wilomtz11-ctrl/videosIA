@@ -7,6 +7,8 @@ Motores:
   kokoro      Kokoro-82M en ONNX (Apache 2.0). CPU, ~3x tiempo real. Voces: em_alex, em_santa, ef_dora
   chatterbox  Chatterbox Multilingual (MIT). Expresiva ('emocion' 0.3–1.2) y clona la voz de 'referencia'.
               Corre en su propio entorno (modelos/venv-chatterbox); en CPU ~5 s por segundo de audio
+  elevenlabs  ElevenLabs (de pago, la más natural). 'voz' = id de la voz; tiempos exactos por carácter.
+              Requiere la variable de entorno ELEVENLABS_API_KEY
   archivos    WAV ya hechos por escena en voz/<episodio>/<id>.wav (tu propia voz)
   estimar     silencio con duración estimada (vista previa rápida)
 """
@@ -95,6 +97,54 @@ def _chatterbox_lote(pendientes: list[dict], cfg) -> None:
                    text=True, check=True, env={**os.environ, "HF_HUB_DISABLE_XET": "1"})
 
 
+ELEVENLABS_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voz}/with-timestamps?output_format=mp3_44100_128"
+
+
+def palabras_desde_alineacion(texto: str, al: dict) -> list[dict]:
+    """Tiempos de cada palabra a partir de los tiempos por carácter que devuelve ElevenLabs."""
+    chars, ini, fin = al["characters"], al["character_start_times_seconds"], al["character_end_times_seconds"]
+    out, actual = [], None
+    for c, a, b in zip(chars, ini, fin):
+        if c.isspace():
+            if actual:
+                out.append(actual)
+                actual = None
+        elif actual is None:
+            actual = {"txt": c, "t0": a, "t1": b}
+        else:
+            actual["txt"] += c
+            actual["t1"] = b
+    if actual:
+        out.append(actual)
+    return [{"txt": w["txt"], "t0": round(w["t0"], 3), "t1": round(w["t1"], 3)} for w in out]
+
+
+def _elevenlabs(texto: str, cfg) -> tuple[np.ndarray, list[dict]]:
+    """Una escena completa (mejor entonación) con tiempos por carácter. Requiere ELEVENLABS_API_KEY."""
+    import base64
+    import os
+    import subprocess
+    import urllib.error
+    import urllib.request
+    clave = os.environ.get("ELEVENLABS_API_KEY")
+    if not clave:
+        raise RuntimeError("Falta la variable de entorno ELEVENLABS_API_KEY")
+    cuerpo = {"text": texto, "model_id": cfg.modelo, "language_code": "es",
+              "voice_settings": {"stability": cfg.estabilidad, "similarity_boost": 0.8, "style": cfg.estilo, "use_speaker_boost": True}}
+    req = urllib.request.Request(ELEVENLABS_URL.format(voz=cfg.voz), data=json.dumps(cuerpo).encode(),
+                                 headers={"xi-api-key": clave, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=180) as r:
+            d = json.load(r)
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"ElevenLabs respondió {e.code}: {e.read()[:300].decode(errors='replace')}") from e
+    mp3 = base64.b64decode(d["audio_base64"])
+    pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", "-", "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"],
+                         input=mp3, capture_output=True, check=True).stdout
+    audio = np.frombuffer(pcm, dtype=np.float32).copy()
+    return audio, palabras_desde_alineacion(texto, d.get("alignment") or d["normalized_alignment"])
+
+
 def _palabras(frase, t0, t1):
     pal = frase.split()
     pesos = [silabas(p) + 0.3 + (1.5 if p[-1] in ",;:" else 0) for p in pal]   # las comas llevan una pausa
@@ -127,6 +177,8 @@ def sintetizar_escena(texto: str, cfg, carpeta: Path | None = None, emocion: flo
     if cfg.motor == "estimar":
         dur = max(1.5, len(texto) / 15.0)
         return np.zeros(int(dur * SR), np.float32), _palabras(texto, 0.0, dur)
+    if cfg.motor == "elevenlabs":
+        return _elevenlabs(texto, cfg)
     carpeta = carpeta or MODELOS / "cache_voz"
     emocion = cfg.emocion if emocion is None else emocion
     trozos, palabras, t = [], [], 0.0
@@ -162,7 +214,9 @@ def generar(episodio: str, escenas, cfg, carpeta: Path) -> list[dict]:
         wav = carpeta / f"{i + 1:02d}_{esc.id}.wav"
         meta = wav.with_suffix(".json")
         emo = cfg.emocion if esc.emocion is None else esc.emocion
-        huella = hashlib.sha1(json.dumps([cfg.motor, cfg.voz, cfg.velocidad, cfg.referencia, emo, cfg.cfg, esc.voz]).encode()).hexdigest()
+        huella = hashlib.sha1(json.dumps([cfg.motor, cfg.voz, cfg.velocidad, cfg.referencia, emo, cfg.cfg, esc.voz]
+                                         + ([cfg.modelo, cfg.estabilidad, cfg.estilo] if cfg.motor == "elevenlabs" else [])
+                                         ).encode()).hexdigest()
         if cfg.motor == "archivos":
             if not wav.exists():
                 raise FileNotFoundError(f"Falta {wav} (graba tu voz para esa escena)")
