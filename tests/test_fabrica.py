@@ -168,3 +168,17 @@ def test_buscar_frase_para_golpes():
     assert buscar_frase(pal, "diez centavos") == pytest.approx(1.5)
     assert buscar_frase(pal, "Guerra") == pytest.approx(3.5)
     assert buscar_frase(pal, "cien pesos") is None
+
+
+def test_region_visible_cubre_el_encuadre():
+    from fabrica.encuadre import huella, region_visible
+    region = [-80, -36, -54, -8]
+    # cámara vertical sobre Bolivia a altura "pais": ve más al norte de -8 y más al sur de -36
+    zona = region_visible(region, [(-64.6, -16.7, 0.8, 0, 0)], 9 / 16)
+    assert zona[1] < -36 and zona[3] > -8
+    assert zona[0] <= -80 and zona[2] >= -54
+    # desde el espacio el relieve no se ve: la región no cambia (salvo el margen)
+    assert region_visible(region, [(-64.6, -16.7, 3.2, 0, 0)], 9 / 16) == [-81.5, -37.5, -52.5, -6.5]
+    # la huella es simétrica en una vista cenital
+    lats = [la for _, la in huella(0, 0, 0.5, 0, 0, 1.0)]
+    assert abs(max(lats) + min(lats)) < 1e-6

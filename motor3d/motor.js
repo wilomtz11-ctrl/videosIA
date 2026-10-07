@@ -234,7 +234,10 @@ function proyectar(lon, lat) {
 }
 const env = (t, t0, t1, ent = 0.35, sal = 0.3) => (t0 <= 0.001 ? 1 : rampa(t, t0, ent)) * (1 - rampa(t, t1 - sal, sal));
 const ZONA_SUP = H * 0.31, ZONA_INF = H * 0.93;
-const zona = (x, y) => clamp01((y - ZONA_SUP) / 80) * clamp01((ZONA_INF - y) / 60) * clamp01((x - 70) / 60) * clamp01((W - 70 - x) / 60);
+// franja de subtítulos: las etiquetas se apagan ahí para no encimarse con el texto
+const SUBS_SUP = H * 0.69, SUBS_INF = H * 0.85;
+const zona = (x, y) => clamp01((y - ZONA_SUP) / 80) * clamp01((ZONA_INF - y) / 60) * clamp01((x - 70) / 60) * clamp01((W - 70 - x) / 60)
+  * (1 - clamp01((y - SUBS_SUP + 50) / 50) * clamp01((SUBS_INF + 50 - y) / 50));
 
 function anioEn(t) {
   const A = E.anios; if (!A.length) return '';
@@ -282,13 +285,15 @@ function renderAt(t) {
   }
   renderer.render(scene, camera);
 
-  // HTML
+  // HTML (mientras sale un golpe, las etiquetas se atenúan para que no compitan con él)
+  const gp = (E.golpes || []).filter(x => t >= x.t && t < x.t + 1.4).pop();
+  const vGolpe = gp ? clamp01((t - gp.t) / 0.15) * (1 - rampa(t, gp.t + 1.1, 0.3)) : 0;
   for (const { e, el } of ETQ) {
     const a = t >= e.t0 - 0.1 && t <= e.t1 ? env(t, e.t0, e.t1) : 0;
     if (a <= 0) { el.style.opacity = 0; continue; }
     const s = proyectar(e.lon, e.lat);
     el.style.left = s.x + 'px'; el.style.top = s.y + 'px';
-    el.style.opacity = s.visible ? a * zona(s.x, s.y) : 0;
+    el.style.opacity = s.visible ? a * zona(s.x, s.y) * (1 - 0.85 * vGolpe) : 0;
   }
   for (const { a, el } of ANI) {
     const v = t >= a.t0 && t <= a.t1 ? env(t, a.t0, a.t1) : 0;
@@ -297,7 +302,6 @@ function renderAt(t) {
     Object.assign(el.style, { left: s.x + 'px', top: s.y + 'px', width: 2 * r + 'px', height: 2 * r + 'px', opacity: s.visible ? v * zona(s.x, s.y) : 0 });
   }
   dibujarFlechas(t);
-  const gp = (E.golpes || []).filter(x => t >= x.t && t < x.t + 1.4).pop();
   if (gp) {
     const k = clamp01((t - gp.t) / 0.3);
     GOLPE.textContent = gp.texto;

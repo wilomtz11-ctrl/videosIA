@@ -15,7 +15,7 @@ import yaml
 
 from . import audio as mezclador
 
-from . import capas, datos, terreno, voz
+from . import capas, datos, encuadre, terreno, voz
 from .calidad import CALIDADES
 from .linea_tiempo import compilar
 from .lugares import Lugares
@@ -52,20 +52,29 @@ def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal
     lugares = Lugares(ep.region, ep.lugares)
 
     _paso(1, 5, "Relieve y textura")
+    # el relieve cubre todo lo que ve la cámara (si no, quedan franjas oscuras arriba y abajo)
+    camaras = [(*lugares.punto(e.camara.ir_a), e.camara.altura, e.camara.inclinacion, e.camara.rumbo)
+               for e in ep.escenas if e.camara]
+    zona = encuadre.region_visible(ep.region, camaras, ancho / alto)
+    # más resolución cuanto más grande la zona, para no perder detalle en los acercamientos
+    crece = ((zona[2] - zona[0]) * (zona[3] - zona[1]) / ((ep.region[2] - ep.region[0]) * (ep.region[3] - ep.region[1]))) ** 0.5
+    lado = lambda base, tope: int(min(tope, max(base, base * crece)) // 256 * 256)  # noqa: E731
+    textura, rejilla, n_capas = lado(cal.textura, 8192), lado(cal.rejilla, 768), lado(cal.capas, 4096)
+    print(f"      zona visible: {zona} (textura {textura}, rejilla {rejilla})")
     fuente = datos.blue_marble(hd=calidad == "maxima")
-    info = terreno.preparar(ep.region, dat, cal.textura, cal.rejilla, fuente)
+    info = terreno.preparar(zona, dat, textura, rejilla, fuente)
     _textura_globo(fuente, cal.globo, dat / "blue-marble.jpg")
 
     _paso(2, 5, "Formas y mapas")
-    geoms = {k: capas.forma(f, lugares, ep.region) for k, f in ep.formas.items()}
-    info["formas"] = capas.mascaras(geoms, ep.region, dat, n=cal.capas)
-    info["mapas"] = [capas.mapa_politico(k, a, ep.region, ep.colores, lugares, dat, n=cal.capas) for k, a in ep.mapas.items()]
+    geoms = {k: capas.forma(f, lugares, zona) for k, f in ep.formas.items()}
+    info["formas"] = capas.mascaras(geoms, zona, dat, n=n_capas)
+    info["mapas"] = [capas.mapa_politico(k, a, zona, ep.colores, lugares, dat, n=n_capas) for k, a in ep.mapas.items()]
 
     _paso(3, 5, f"Voz ({ep.voz.motor})")
     voces = voz.generar(nombre, ep.escenas, ep.voz, RAIZ / "voz")
 
     _paso(4, 5, "Línea de tiempo")
-    comp = compilar(ep, voces, lugares, {"rejilla": info["rejilla"], "formas": info["formas"],
+    comp = compilar(ep, voces, lugares, {"region": zona, "rejilla": info["rejilla"], "formas": info["formas"],
                                           "mapas": [{"id": m["id"]} for m in info["mapas"]]}, (ancho, alto))
     comp.escena["escala"] = cal.escala
     comp.escena["antialias"] = cal.antialias   # el MSAA cuesta ~35 % sin GPU
