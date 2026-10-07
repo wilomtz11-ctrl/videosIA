@@ -24,6 +24,22 @@ def _dist_angular(a, b):
     return math.degrees(math.acos(max(-1.0, min(1.0, c))))
 
 
+def _norm(w: str) -> str:
+    import unicodedata
+    w = unicodedata.normalize("NFKD", w.lower()).encode("ascii", "ignore").decode()
+    return "".join(c for c in w if c.isalnum())
+
+
+def buscar_frase(palabras: list[dict], frase: str) -> float | None:
+    """Momento en que empieza a decirse 'frase' (tiempo de su primera palabra)."""
+    obj = [_norm(x) for x in frase.split() if _norm(x)]
+    dichas = [_norm(p["txt"]) for p in palabras]
+    for i in range(len(dichas) - len(obj) + 1):
+        if dichas[i:i + len(obj)] == obj:
+            return palabras[i]["t0"]
+    return None
+
+
 def agrupar_subtitulos(palabras, max_palabras=3, max_letras=18):
     grupos, actual = [], []
     for i, p in enumerate(palabras):
@@ -44,12 +60,13 @@ class Compilado:
     voces: list = field(default_factory=list)      # [(wav, inicio)]
     efectos: list = field(default_factory=list)    # [(nombre interno o EfectoIA, inicio, ganancia)]
     ambientes: list = field(default_factory=list)  # [(pedido, t0, t1)]
+    musicas: list = field(default_factory=list)    # [(emoción o pedido, inicio)] cambios de música
     tiempos: list = field(default_factory=list)    # [(id, t0, t1)]
 
 
 def compilar(ep: Episodio, voces: list[dict], lugares: Lugares, info_capas: dict, ancho_alto) -> Compilado:
     out = Compilado(escena={})
-    cam_kf, mapas_pistas, formas_ev, anios = [], [], [], []
+    cam_kf, mapas_pistas, formas_ev, anios, golpes, pulsos = [], [], [], [], [], []
     titulares, etiquetas, anillos, flechas, subtitulos = [], [], [], [], []
     t = 0.0
     cam_prev = None          # (lon, lat, alt, incl, rumbo) al final de la escena anterior
@@ -60,9 +77,19 @@ def compilar(ep: Episodio, voces: list[dict], lugares: Lugares, info_capas: dict
         t1 = t0 + ENTRADA_VOZ + v["duracion"] + esc.pausa
         out.tiempos.append((esc.id, t0, t1))
         out.voces.append((v["wav"], t0 + ENTRADA_VOZ))
-        for g in agrupar_subtitulos([{**p, "t0": p["t0"] + t0 + ENTRADA_VOZ, "t1": p["t1"] + t0 + ENTRADA_VOZ}
-                                     for p in v["palabras"]]):
+        abs_pal = [{**p, "t0": p["t0"] + t0 + ENTRADA_VOZ, "t1": p["t1"] + t0 + ENTRADA_VOZ} for p in v["palabras"]]
+        for g in agrupar_subtitulos(abs_pal):
             subtitulos.append(g)
+        # ritmo: un empujón de cámara al empezar cada frase (cambio visual cada pocos segundos)
+        for k, p in enumerate(abs_pal):
+            if k == 0 or abs_pal[k - 1]["txt"][-1] in ".?!…":
+                pulsos.append(round(p["t0"], 3))
+        for frase in esc.golpes:
+            tg = buscar_frase(abs_pal, frase)
+            if tg is None:
+                raise ValueError(f"escena '{esc.id}': el golpe '{frase}' no aparece tal cual en la narración")
+            golpes.append({"t": round(tg, 3), "texto": frase.upper() if len(frase) < 22 else frase})
+            out.efectos.append(("impacto", max(0, tg - 0.05), 0.55))
 
         # --- cámara ---
         if esc.camara:
@@ -138,6 +165,8 @@ def compilar(ep: Episodio, voces: list[dict], lugares: Lugares, info_capas: dict
                 out.efectos.append((ef, t0 + ef.retraso, ef.vol))
         if esc.ambiente:
             out.ambientes.append((esc.ambiente, t0, t1))
+        if esc.musica:
+            out.musicas.append((esc.musica, t0))
         t = t1
 
     # etiquetas idénticas en escenas seguidas = un solo intervalo (sin parpadeo)
@@ -172,5 +201,7 @@ def compilar(ep: Episodio, voces: list[dict], lugares: Lugares, info_capas: dict
         "anillos": anillos,
         "flechas": flechas,
         "subtitulos": subtitulos,
+        "golpes": golpes,
+        "pulsos": pulsos,
     }
     return out

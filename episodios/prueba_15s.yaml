@@ -76,6 +76,8 @@ escenas:
     retraso: 0.0
     vol: 0.9
     duracion: 3
+  golpes:
+  - ni un metro de costa
 - id: promesa
   voz: La respuesta empieza con un impuesto de diez centavos... y termina en una guerra
     que, casi siglo y medio después, todavía se discute.
@@ -103,3 +105,6 @@ escenas:
     retraso: 4.2
     vol: 0.7
     duracion: 4
+  golpes:
+  - diez centavos
+  - una guerra

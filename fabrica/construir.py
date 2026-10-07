@@ -109,11 +109,15 @@ def _sonidos_ia(ep, comp, dur):
     if not hay_clave and (isinstance(ep.musica, MusicaIA) or comp.ambientes or any(not isinstance(n, str) for n, *_ in comp.efectos)):
         print("  aviso: sin ELEVENLABS_API_KEY se omiten la música, los efectos y los ambientes generados")
     from . import elevenlabs
+    from . import kit
     musica, vol = None, 0.22
-    if isinstance(ep.musica, MusicaIA):
-        if hay_clave:
-            musica, vol = str(elevenlabs.musica(ep.musica.pedido, ep.musica.segundos or min(dur, 90))), ep.musica.vol
-    elif ep.musica and Path(ep.musica).exists():
+    if isinstance(ep.musica, MusicaIA) and hay_clave:
+        vol = ep.musica.vol
+        pedido, seg = kit.musica(ep.musica.pedido)
+        tramos = [(ep.musica.pedido if ep.musica.pedido in kit.MUSICA else pedido, 0.0)] + list(comp.musicas)
+        musica = [(str(elevenlabs.musica(*((kit.musica(m) if m in kit.MUSICA else (m, ep.musica.segundos or seg))))), t)
+                  for m, t in tramos]
+    elif ep.musica and isinstance(ep.musica, str) and Path(ep.musica).exists():
         musica = ep.musica
     efectos = []
     for n, t, g in comp.efectos:
@@ -123,8 +127,9 @@ def _sonidos_ia(ep, comp, dur):
             efectos.append((str(elevenlabs.efecto(n.pedido, n.duracion)), t, g))
     ambientes = []
     if hay_clave:
-        for pedido, t0, t1 in comp.ambientes:
-            ambientes.append((str(elevenlabs.efecto(pedido, min(22.0, t1 - t0))), t0, t1))
+        for nombre, t0, t1 in comp.ambientes:
+            pedido, d = kit.ambiente(nombre) if nombre in kit.AMBIENTES else (nombre, min(22.0, t1 - t0))
+            ambientes.append((str(elevenlabs.efecto(pedido, d)), t0, t1))
     return musica, vol, efectos, ambientes
 
 

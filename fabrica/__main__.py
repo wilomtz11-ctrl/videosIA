@@ -36,10 +36,24 @@ def main(argv=None):
     m.add_argument("--voz", choices=["kokoro", "chatterbox", "elevenlabs", "archivos", "estimar"])
     m.add_argument("--calidad", choices=["borrador", "normal", "maxima"], default="maxima")
     m.add_argument("--procesos", type=int)
+    k = sub.add_parser("kit", help="genera una sola vez el kit de sonido reutilizable (ElevenLabs)")
+    k.add_argument("--si", action="store_true", help="confirma el gasto de créditos")
     a = ap.parse_args(argv)
 
     from . import construir
     try:
+        if a.cmd == "kit":
+            from . import elevenlabs, kit
+            print(f"Kit: {len(kit.EFECTOS)} efectos, {len(kit.AMBIENTES)} ambientes, {len(kit.MUSICA)} músicas.")
+            print(f"Costo máximo estimado la primera vez: ~{kit.costo_estimado()} créditos (lo ya generado no se paga).")
+            if not a.si:
+                print("Para generarlo: python -m fabrica kit --si")
+                return 0
+            antes = elevenlabs.creditos()
+            kit.generar_todo()
+            despues = elevenlabs.creditos()
+            print(f"Listo. Créditos usados: {despues['usados'] - antes['usados']}; quedan {despues['restantes']}")
+            return 0
         if a.cmd == "validar":
             ep = construir.cargar(a.episodio)
             palabras = sum(len(e.voz.split()) for e in ep.escenas)

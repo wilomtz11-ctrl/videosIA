@@ -160,3 +160,11 @@ def test_palabras_desde_alineacion_elevenlabs():
     p = palabras_desde_alineacion(texto, al)
     assert [w["txt"] for w in p] == ["Hola", "mundo,", "sí."]
     assert p[0]["t0"] == 0 and p[1]["t0"] == pytest.approx(0.5) and p[-1]["t1"] == pytest.approx(1.5)
+
+
+def test_buscar_frase_para_golpes():
+    from fabrica.linea_tiempo import buscar_frase
+    pal = [{"txt": w, "t0": i * 0.5, "t1": i * 0.5 + 0.4} for i, w in enumerate("Un impuesto de diez centavos... y una guerra.".split())]
+    assert buscar_frase(pal, "diez centavos") == pytest.approx(1.5)
+    assert buscar_frase(pal, "Guerra") == pytest.approx(3.5)
+    assert buscar_frase(pal, "cien pesos") is None

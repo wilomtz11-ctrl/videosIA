@@ -200,6 +200,7 @@ const crear = (clase, html, estilo = '') => { const d = document.createElement('
 const ETQ = E.etiquetas.map(e => ({ e, el: crear(`etq ${e.estilo}`, e.texto, `font-size:${e.tam}px`) }));
 const ANI = E.anillos.map(a => ({ a, el: crear('anillo', '', `border-color:${a.color};color:${a.color}`) }));
 const SUB = crear('subs', '');
+const GOLPE = crear('golpe', '');
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const svg = document.createElementNS(SVG_NS, 'svg');
 svg.setAttribute('class', 'flechas'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
@@ -247,7 +248,11 @@ function anioEn(t) {
 function renderAt(t) {
   t += E.desfase || 0;   // las muestras renderizan solo un tramo del episodio
   // cámara
-  const [lo, la, alt, inc, rum] = camaraEn(t);
+  const [lo, la, alt0, inc, rum] = camaraEn(t);
+  // empujón breve de cámara al empezar cada frase
+  let empuje = 0;
+  for (const tp of E.pulsos || []) { const d = t - tp; if (d >= 0 && d < 0.5) empuje = Math.max(empuje, Math.sin(Math.PI * d / 0.5)); }
+  const alt = alt0 * (1 - 0.035 * empuje);
   ponerCamara(lo, la, alt, inc, rum);
   atmosfera.material.uniforms.uOpac.value = clamp01((alt - 0.25) / 0.6);
   // mapa político con fundido
@@ -292,6 +297,13 @@ function renderAt(t) {
     Object.assign(el.style, { left: s.x + 'px', top: s.y + 'px', width: 2 * r + 'px', height: 2 * r + 'px', opacity: s.visible ? v * zona(s.x, s.y) : 0 });
   }
   dibujarFlechas(t);
+  const gp = (E.golpes || []).filter(x => t >= x.t && t < x.t + 1.4).pop();
+  if (gp) {
+    const k = clamp01((t - gp.t) / 0.3);
+    GOLPE.textContent = gp.texto;
+    GOLPE.style.opacity = 1 - rampa(t, gp.t + 1.1, 0.3);
+    GOLPE.style.transform = `translate(-50%, -50%) scale(${(0.6 + 0.4 * suave(k)) * (1 + 0.15 * Math.sin(Math.PI * k) * (1 - k))}) rotate(${-3 * (1 - k)}deg)`;
+  } else GOLPE.style.opacity = 0;
   const an = $('anio'); an.textContent = anioEn(t);
   const tit = E.titulares.find(x => t >= x.t0 && t < x.t1), ti = $('titular');
   if (tit) {

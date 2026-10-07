@@ -105,7 +105,7 @@ def mezclar(duracion, voces, efectos, musica=None, vol_musica=0.22, salida="mezc
                 cache[nombre] = EFECTOS[nombre]()
             else:   # archivo (efecto generado y guardado en la biblioteca)
                 c = leer_con_ffmpeg(nombre)
-                cache[nombre] = c / (np.abs(c).max() + 1e-9) * 0.7
+                cache[nombre] = c / (np.abs(c).max() + 1e-9) * 1.4   # los efectos a medida van al frente
         _sumar(fx, cache[nombre], inicio, gan)
     mezcla = voz + fx * 0.6
     for ruta, t0, t1 in ambientes:
@@ -118,13 +118,26 @@ def mezclar(duracion, voces, efectos, musica=None, vol_musica=0.22, salida="mezc
         env[-f:] = np.linspace(1, 0, f)
         _sumar(mezcla, c * env, t0, vol_ambiente)
     if musica:
-        m = _ajustar(leer_con_ffmpeg(musica), n)
-        m = m / (np.abs(m).max() + 1e-9)
+        tramos = [(musica, 0.0)] if isinstance(musica, (str, bytes)) else list(musica)
+        m = np.zeros(n, np.float32)
+        x = 2 * SR   # fundido cruzado de 2 s entre emociones
+        for k, (ruta, t0) in enumerate(tramos):
+            i0 = int(t0 * SR)
+            i1 = int(tramos[k + 1][1] * SR) if k + 1 < len(tramos) else n
+            c = _ajustar(leer_con_ffmpeg(ruta), min(n, i1 + x) - i0)
+            c = c / (np.abs(c).max() + 1e-9)
+            if k > 0:
+                c[:x] *= np.linspace(0, 1, min(x, len(c)))[: len(c[:x])]
+            if k + 1 < len(tramos):
+                c[-x:] *= np.linspace(1, 0, min(x, len(c)))[-len(c[-x:]):]
+            m[i0:i0 + len(c)] += c
         # "ducking": la música baja cuando hay voz
         env = np.convolve(np.abs(voz), np.ones(SR // 10) / (SR // 10), mode="same")
         activo = np.clip(env / (env.max() + 1e-9) * 8, 0, 1)
         suave = np.convolve(activo, np.ones(SR // 4) / (SR // 4), mode="same")
-        ganancia = vol_musica * (1 - 0.6 * suave)
+        env_fx = np.convolve(np.abs(fx), np.ones(SR // 10) / (SR // 10), mode="same")
+        fx_activo = np.clip(env_fx / (env_fx.max() + 1e-9) * 6, 0, 1)
+        ganancia = vol_musica * (1 - 0.6 * np.maximum(suave, 0.7 * fx_activo))   # también se aparta para los efectos
         t = np.arange(n) / SR
         ganancia *= np.clip(t / 1.0, 0, 1) * np.clip((duracion - t) / 2.0, 0, 1)  # entrada y salida suaves
         mezcla += m * ganancia

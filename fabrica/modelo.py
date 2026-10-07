@@ -120,7 +120,7 @@ class EfectoIA(Estricto):
 
 
 class MusicaIA(Estricto):
-    pedido: str = Field(min_length=3, description="estilo de la música (en inglés da mejores resultados)")
+    pedido: str = Field(min_length=3, description="emoción del kit (intriga, tension...) o estilo libre en inglés")
     vol: float = Field(0.18, ge=0, le=1)
     segundos: float | None = Field(None, description="largo a generar; si el video es más largo, se repite en bucle")
 
@@ -148,6 +148,8 @@ class Escena(Estricto):
     efectos: list[Union[str, EfectoIA]] = Field([], description="impacto | whoosh | pop, o un efecto a medida: texto o {pedido, retraso, vol}")
     ambiente: str | None = Field(None, description="sonido de fondo de la escena (ElevenLabs), p. ej. 'desert wind'")
     tono: str | None = Field(None, description="elevenlabs: intención de la voz (misterio, tension, asombro, dramatico, serio...)")
+    golpes: list[str] = Field([], description="frases de la narración que aparecen en grande cuando se dicen ('diez centavos')")
+    musica: str | None = Field(None, description="cambia la música desde esta escena: emoción del kit (intriga, tension, epico, emotivo, descubrimiento)")
     pausa: float = Field(0.35, ge=0, le=3, description="silencio al final de la escena")
     emocion: float | None = Field(None, ge=0.25, le=1.5, description="chatterbox: intensidad de esta escena (si no, la del episodio)")
 
@@ -169,7 +171,17 @@ class Escena(Estricto):
     @field_validator("efectos")
     @classmethod
     def _efectos(cls, v):
-        return [x if isinstance(x, EfectoIA) or x in EFECTOS_INTERNOS else EfectoIA(pedido=x) for x in v]
+        from . import kit
+        out = []
+        for x in v:
+            if isinstance(x, EfectoIA) or x in EFECTOS_INTERNOS:
+                out.append(x)
+            elif kit.efecto(x):                      # nombre del kit de sonido
+                pedido, dur = kit.efecto(x)
+                out.append(EfectoIA(pedido=pedido, duracion=dur))
+            else:
+                out.append(EfectoIA(pedido=x))
+        return out
 
     @field_validator("anillos")
     @classmethod
