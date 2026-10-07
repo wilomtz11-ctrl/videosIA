@@ -111,6 +111,28 @@ class Anillo(Estricto):
     _c = field_validator("color")(color_hex)
 
 
+class EfectoIA(Estricto):
+    """Efecto de sonido generado con ElevenLabs y guardado en biblioteca/ (se reutiliza)."""
+    pedido: str = Field(min_length=3, description="qué debe sonar (en inglés da mejores resultados)")
+    retraso: float = Field(0.1, ge=0)
+    vol: float = Field(0.8, ge=0, le=2)
+    duracion: float | None = Field(None, gt=0, le=22)
+
+
+class MusicaIA(Estricto):
+    pedido: str = Field(min_length=3, description="estilo de la música (en inglés da mejores resultados)")
+    vol: float = Field(0.18, ge=0, le=1)
+    segundos: float | None = Field(None, description="largo a generar; si el video es más largo, se repite en bucle")
+
+
+EFECTOS_INTERNOS = ("impacto", "whoosh", "pop")
+TONOS = {   # tono en español -> etiqueta de ElevenLabs v3
+    "misterio": "mysterious", "intriga": "intrigued", "tension": "tense", "tensión": "tense", "asombro": "amazed",
+    "dramatico": "dramatic", "dramático": "dramatic", "emocion": "excited", "emoción": "excited", "serio": "serious",
+    "susurro": "whispers", "curioso": "curious", "triste": "sad", "solemne": "solemn", "epico": "epic", "épico": "epic",
+}
+
+
 class Escena(Estricto):
     id: str | None = None
     voz: str = Field(min_length=3, description="lo que dice la narración; marca el ritmo de la escena")
@@ -123,7 +145,9 @@ class Escena(Estricto):
     pintar: list[Pintura] = []
     flechas: list[Flecha] = []
     anillos: list[Union[str, Anillo]] = []
-    efectos: list[Literal["impacto", "whoosh", "pop"]] = []
+    efectos: list[Union[str, EfectoIA]] = Field([], description="impacto | whoosh | pop, o un efecto a medida: texto o {pedido, retraso, vol}")
+    ambiente: str | None = Field(None, description="sonido de fondo de la escena (ElevenLabs), p. ej. 'desert wind'")
+    tono: str | None = Field(None, description="elevenlabs: intención de la voz (misterio, tension, asombro, dramatico, serio...)")
     pausa: float = Field(0.35, ge=0, le=3, description="silencio al final de la escena")
     emocion: float | None = Field(None, ge=0.25, le=1.5, description="chatterbox: intensidad de esta escena (si no, la del episodio)")
 
@@ -141,6 +165,11 @@ class Escena(Estricto):
     @classmethod
     def _resaltar(cls, v):
         return [Resalte(forma=x) if isinstance(x, str) else x for x in v]
+
+    @field_validator("efectos")
+    @classmethod
+    def _efectos(cls, v):
+        return [x if isinstance(x, EfectoIA) or x in EFECTOS_INTERNOS else EfectoIA(pedido=x) for x in v]
 
     @field_validator("anillos")
     @classmethod
@@ -194,7 +223,7 @@ class Episodio(Estricto):
     formato: Literal["vertical", "horizontal"] = "vertical"
     region: tuple[float, float, float, float] = Field(description="lon0, lat0, lon1, lat1 de la zona con relieve en alta resolución")
     voz: Voz = Voz()
-    musica: str | None = None
+    musica: Union[str, MusicaIA, None] = Field(None, description="archivo de música, o {pedido} para generarla con ElevenLabs")
     exageracion: float = Field(5.0, ge=1, le=15, description="exageración vertical del relieve")
     mapas: dict[str, int] = Field(default_factory=lambda: {"hoy": 0}, description="clave -> año (0 = actual, Natural Earth)")
     colores: dict[str, str] = {}

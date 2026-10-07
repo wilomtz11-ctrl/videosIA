@@ -97,14 +97,17 @@ def _chatterbox_lote(pendientes: list[dict], cfg) -> None:
                    text=True, check=True, env={**os.environ, "HF_HUB_DISABLE_XET": "1"})
 
 
-ELEVENLABS_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voz}/with-timestamps?output_format=mp3_44100_128"
-
-
 def palabras_desde_alineacion(texto: str, al: dict) -> list[dict]:
     """Tiempos de cada palabra a partir de los tiempos por carácter que devuelve ElevenLabs."""
     chars, ini, fin = al["characters"], al["character_start_times_seconds"], al["character_end_times_seconds"]
-    out, actual = [], None
+    out, actual, en_etiqueta = [], None, False
     for c, a, b in zip(chars, ini, fin):
+        if c == "[":            # las etiquetas de tono de v3 ([mysterious]) no van en los subtítulos
+            en_etiqueta = True
+            continue
+        if en_etiqueta:
+            en_etiqueta = c != "]"
+            continue
         if c.isspace():
             if actual:
                 out.append(actual)
@@ -119,30 +122,23 @@ def palabras_desde_alineacion(texto: str, al: dict) -> list[dict]:
     return [{"txt": w["txt"], "t0": round(w["t0"], 3), "t1": round(w["t1"], 3)} for w in out]
 
 
-def _elevenlabs(texto: str, cfg) -> tuple[np.ndarray, list[dict]]:
-    """Una escena completa (mejor entonación) con tiempos por carácter. Requiere ELEVENLABS_API_KEY."""
-    import base64
-    import os
+def con_tono(texto: str, tono: str | None) -> str:
+    """Antepone la etiqueta de emoción de ElevenLabs v3 (p. ej. [mysterious])."""
+    if not tono:
+        return texto
+    from .modelo import TONOS
+    return f"[{TONOS.get(tono.lower(), tono)}] {texto}"
+
+
+def _elevenlabs(texto: str, cfg, tono: str | None = None) -> tuple[np.ndarray, list[dict]]:
+    """Una escena completa (mejor entonación) con tiempos por carácter, desde la biblioteca si ya existe."""
     import subprocess
-    import urllib.error
-    import urllib.request
-    clave = os.environ.get("ELEVENLABS_API_KEY")
-    if not clave:
-        raise RuntimeError("Falta la variable de entorno ELEVENLABS_API_KEY")
-    cuerpo = {"text": texto, "model_id": cfg.modelo, "language_code": "es",
-              "voice_settings": {"stability": cfg.estabilidad, "similarity_boost": 0.8, "style": cfg.estilo, "use_speaker_boost": True}}
-    req = urllib.request.Request(ELEVENLABS_URL.format(voz=cfg.voz), data=json.dumps(cuerpo).encode(),
-                                 headers={"xi-api-key": clave, "Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=180) as r:
-            d = json.load(r)
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"ElevenLabs respondió {e.code}: {e.read()[:300].decode(errors='replace')}") from e
-    mp3 = base64.b64decode(d["audio_base64"])
-    pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", "-", "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"],
-                         input=mp3, capture_output=True, check=True).stdout
-    audio = np.frombuffer(pcm, dtype=np.float32).copy()
-    return audio, palabras_desde_alineacion(texto, d.get("alignment") or d["normalized_alignment"])
+    from . import elevenlabs
+    texto_voz = con_tono(texto, tono) if cfg.modelo == "eleven_v3" else texto
+    mp3, alineacion = elevenlabs.narracion(texto_voz, cfg.voz, cfg.modelo, cfg.estabilidad, cfg.estilo)
+    pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(mp3), "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"],
+                         capture_output=True, check=True).stdout
+    return np.frombuffer(pcm, dtype=np.float32).copy(), palabras_desde_alineacion(texto_voz, alineacion)
 
 
 def _palabras(frase, t0, t1):
@@ -172,13 +168,14 @@ def _audio_frase(carpeta: Path, frase: str, cfg, emocion: float) -> np.ndarray:
     return _remuestrear(a if a.ndim == 1 else a.mean(axis=1), sr)
 
 
-def sintetizar_escena(texto: str, cfg, carpeta: Path | None = None, emocion: float | None = None) -> tuple[np.ndarray, list[dict]]:
+def sintetizar_escena(texto: str, cfg, carpeta: Path | None = None, emocion: float | None = None,
+                      tono: str | None = None) -> tuple[np.ndarray, list[dict]]:
     """Devuelve (audio 24 kHz, palabras con tiempos relativos al inicio del audio)."""
     if cfg.motor == "estimar":
         dur = max(1.5, len(texto) / 15.0)
         return np.zeros(int(dur * SR), np.float32), _palabras(texto, 0.0, dur)
     if cfg.motor == "elevenlabs":
-        return _elevenlabs(texto, cfg)
+        return _elevenlabs(texto, cfg, tono)
     carpeta = carpeta or MODELOS / "cache_voz"
     emocion = cfg.emocion if emocion is None else emocion
     trozos, palabras, t = [], [], 0.0
@@ -215,7 +212,7 @@ def generar(episodio: str, escenas, cfg, carpeta: Path) -> list[dict]:
         meta = wav.with_suffix(".json")
         emo = cfg.emocion if esc.emocion is None else esc.emocion
         huella = hashlib.sha1(json.dumps([cfg.motor, cfg.voz, cfg.velocidad, cfg.referencia, emo, cfg.cfg, esc.voz]
-                                         + ([cfg.modelo, cfg.estabilidad, cfg.estilo] if cfg.motor == "elevenlabs" else [])
+                                         + ([cfg.modelo, cfg.estabilidad, cfg.estilo, esc.tono] if cfg.motor == "elevenlabs" else [])
                                          ).encode()).hexdigest()
         if cfg.motor == "archivos":
             if not wav.exists():
@@ -228,7 +225,7 @@ def generar(episodio: str, escenas, cfg, carpeta: Path) -> list[dict]:
             if m.get("huella") == huella:
                 salida.append({"wav": wav, "duracion": m["duracion"], "palabras": m["palabras"]})
                 continue
-        audio, palabras = sintetizar_escena(esc.voz, cfg, carpeta, emo)
+        audio, palabras = sintetizar_escena(esc.voz, cfg, carpeta, emo, esc.tono)
         sf.write(wav, audio, SR)
         dur = len(audio) / SR
         meta.write_text(json.dumps({"huella": huella, "duracion": dur, "palabras": palabras}, ensure_ascii=False), encoding="utf-8")

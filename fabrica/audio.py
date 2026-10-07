@@ -74,8 +74,22 @@ def _sumar(pista, clip, inicio, ganancia=1.0):
     pista[i:fin] += clip[: fin - i] * ganancia
 
 
-def mezclar(duracion, voces, efectos, musica=None, vol_musica=0.22, salida="mezcla.wav"):
-    """voces: [(ruta, inicio)]; efectos: [(nombre, inicio, ganancia)]."""
+def _ajustar(clip, n):
+    """Repite (con fundido) o recorta un clip a n muestras."""
+    if len(clip) >= n:
+        return clip[:n].copy()
+    f = min(len(clip) // 4, SR // 2)
+    out = clip.copy()
+    while len(out) < n:
+        rampa = np.linspace(0, 1, f, dtype=np.float32)
+        out[-f:] = out[-f:] * (1 - rampa) + clip[:f] * rampa
+        out = np.concatenate([out, clip[f:]])
+    return out[:n]
+
+
+def mezclar(duracion, voces, efectos, musica=None, vol_musica=0.22, salida="mezcla.wav", ambientes=(), vol_ambiente=0.16):
+    """voces: [(ruta, inicio)]; efectos: [(nombre interno o ruta de archivo, inicio, ganancia)];
+    ambientes: [(ruta, t0, t1)] sonido de fondo por escena (con fundidos)."""
     n = int(duracion * SR)
     voz = np.zeros(n, np.float32)
     for ruta, inicio in voces:
@@ -87,14 +101,25 @@ def mezclar(duracion, voces, efectos, musica=None, vol_musica=0.22, salida="mezc
     cache = {}
     for nombre, inicio, gan in efectos:
         if nombre not in cache:
-            cache[nombre] = EFECTOS[nombre]()
+            if nombre in EFECTOS:
+                cache[nombre] = EFECTOS[nombre]()
+            else:   # archivo (efecto generado y guardado en la biblioteca)
+                c = leer_con_ffmpeg(nombre)
+                cache[nombre] = c / (np.abs(c).max() + 1e-9) * 0.7
         _sumar(fx, cache[nombre], inicio, gan)
     mezcla = voz + fx * 0.6
+    for ruta, t0, t1 in ambientes:
+        k = int((t1 - t0) * SR)
+        c = leer_con_ffmpeg(ruta)
+        c = _ajustar(c / (np.abs(c).max() + 1e-9), k)
+        f = min(k // 3, int(0.6 * SR))
+        env = np.ones(k, np.float32)
+        env[:f] = np.linspace(0, 1, f)
+        env[-f:] = np.linspace(1, 0, f)
+        _sumar(mezcla, c * env, t0, vol_ambiente)
     if musica:
-        m = leer_con_ffmpeg(musica)
-        if len(m) < n:
-            m = np.tile(m, n // len(m) + 1)
-        m = m[:n] / (np.abs(m[:n]).max() + 1e-9)
+        m = _ajustar(leer_con_ffmpeg(musica), n)
+        m = m / (np.abs(m).max() + 1e-9)
         # "ducking": la música baja cuando hay voz
         env = np.convolve(np.abs(voz), np.ones(SR // 10) / (SR // 10), mode="same")
         activo = np.clip(env / (env.max() + 1e-9) * 8, 0, 1)

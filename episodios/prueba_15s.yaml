@@ -1,0 +1,105 @@
+titulo: Prueba 15 s — voz ElevenLabs
+formato: vertical
+region:
+- -80
+- -36
+- -54
+- -8
+exageracion: 5
+voz:
+  motor: elevenlabs
+  voz: l1zE9xgNpUTaQCZzpNJa
+  modelo: eleven_v3
+  estabilidad: 0.4
+  estilo: 0.3
+musica:
+  pedido: Mysterious cinematic documentary underscore, low strings and soft pulsing
+    synth, building suspense
+  segundos: 15
+  vol: 0.2
+mapas:
+  hoy: 0
+  '1878': 1878
+formas:
+  bolivia:
+    pais: Bolivia
+  litoral:
+    op: interseccion
+    a: 1878:Bolivia
+    b: 2010:Chile
+    filtro:
+    - -72
+    - -25.5
+    - -66
+    - -20.5
+  tarapaca:
+    op: interseccion
+    a: 1878:Peru
+    b: 2010:Chile
+    filtro:
+    - -72
+    - -22
+    - -66
+    - -17
+lugares:
+  Océano Pacífico:
+  - -75.5
+  - -22.5
+escenas:
+- id: gancho
+  voz: Bolivia tiene una armada, con barcos y miles de marinos. Pero no tiene ni un
+    metro de costa. ¿Cómo es posible?
+  camara:
+    ir_a: Bolivia
+    altura: pais
+  mapa: hoy
+  anio: HOY
+  titular:
+    texto: 'Bolivia tiene armada...
+
+      pero NO tiene mar'
+    estilo: alerta
+  etiquetas:
+  - Bolivia
+  - Chile
+  - Perú
+  - Brasil
+  - Argentina
+  resaltar:
+  - forma: bolivia
+    color: amarillo
+    retraso: 1.5
+  tono: misterio
+  ambiente: Cold wind blowing over a high desert plateau, distant ocean waves
+  efectos:
+  - pedido: Deep cinematic boom hit with long reverb tail
+    retraso: 0.0
+    vol: 0.9
+    duracion: 3
+- id: promesa
+  voz: La respuesta empieza con un impuesto de diez centavos... y termina en una guerra
+    que, casi siglo y medio después, todavía se discute.
+  camara:
+    ir_a:
+    - -66
+    - -21
+    altura: 1.15
+  titular:
+    texto: 10 centavos → 1 guerra
+    estilo: dato
+    retraso: 1.0
+  etiquetas:
+  - Bolivia
+  - Chile
+  - Perú
+  - Argentina
+  tono: intriga
+  efectos:
+  - pedido: Handful of old metal coins dropping and clinking on a wooden table
+    retraso: 1.6
+    vol: 0.8
+    duracion: 2
+  - pedido: Distant war drums and cannon rumble, cinematic
+    retraso: 4.2
+    vol: 0.7
+    duracion: 4

@@ -1,0 +1,55 @@
+{
+ "musica/mysterious-cinematic-documentary-undersc-42ef57d2408ebba6.mp3": {
+  "creditos_aprox": 208,
+  "fecha": "2026-10-07",
+  "prompt": "Mysterious cinematic documentary underscore, low strings and soft pulsing synth, building suspense",
+  "segundos": 15,
+  "tipo": "musica"
+ },
+ "sonidos/cold-wind-blowing-over-a-high-desert-pla-799ab3d9a1168268.mp3": {
+  "duracion": 8.23,
+  "fecha": "2026-10-07",
+  "prompt": "Cold wind blowing over a high desert plateau, distant ocean waves",
+  "tipo": "efecto"
+ },
+ "sonidos/deep-cinematic-boom-hit-with-long-reverb-a2ea098e6a4b3726.mp3": {
+  "duracion": 3.0,
+  "fecha": "2026-10-07",
+  "prompt": "Deep cinematic boom hit with long reverb tail",
+  "tipo": "efecto"
+ },
+ "sonidos/deep-cinematic-whoosh-transition-with-lo-6a502ee03225878f.mp3": {
+  "duracion": 2.0,
+  "fecha": "2026-10-07",
+  "prompt": "Deep cinematic whoosh transition with low rumble",
+  "tipo": "efecto"
+ },
+ "sonidos/distant-war-drums-and-cannon-rumble-cine-6766575359d519fa.mp3": {
+  "duracion": 4.0,
+  "fecha": "2026-10-07",
+  "prompt": "Distant war drums and cannon rumble, cinematic",
+  "tipo": "efecto"
+ },
+ "sonidos/handful-of-old-metal-coins-dropping-and-c63a9000f24226b6.mp3": {
+  "duracion": 2.0,
+  "fecha": "2026-10-07",
+  "prompt": "Handful of old metal coins dropping and clinking on a wooden table",
+  "tipo": "efecto"
+ },
+ "voz/b80d2009d349fcee.mp3": {
+  "creditos_aprox": 123,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[mysterious] Bolivia tiene una armada, con barcos y miles de marinos. Pero no tiene ni un metro de costa. ¿Cómo es posible?",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
+ "voz/cc5841250ae4685e.mp3": {
+  "creditos_aprox": 145,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[intrigued] La respuesta empieza con un impuesto de diez centavos... y termina en una guerra que, casi siglo y medio después, todavía se discute.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ }
+}

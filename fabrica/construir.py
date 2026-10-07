@@ -76,8 +76,9 @@ def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal
         print(f"        {t0:6.1f}–{t1:6.1f}  {id_}")
 
     _paso(5, 5, "Audio")
-    musica = ep.musica if ep.musica and Path(ep.musica).exists() else None
-    mezcla = mezclador.mezclar(dur, comp.voces, comp.efectos, musica=musica, salida=str(build / "mezcla.wav"))
+    musica, vol_musica, efectos, ambientes = _sonidos_ia(ep, comp, dur)
+    mezcla = mezclador.mezclar(dur, comp.voces, efectos, musica=musica, vol_musica=vol_musica,
+                               ambientes=ambientes, salida=str(build / "mezcla.wav"))
 
     # proyecto HyperFrames
     creditos = " · ".join(["AWS Terrain Tiles", "NASA Blue Marble", "Natural Earth"]
@@ -99,6 +100,32 @@ def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal
     (build / "meta.json").write_text(json.dumps({"id": nombre, "name": ep.titulo}), encoding="utf-8")
     return build, {"episodio": ep, "nombre": nombre, "duracion": dur, "mezcla": mezcla, "calidad": cal,
                    "resolucion": resol + ("-4k" if cal.escala == 2 else "")}
+
+
+def _sonidos_ia(ep, comp, dur):
+    """Resuelve música, efectos y ambientes a archivos (de la biblioteca o generados con ElevenLabs)."""
+    from .modelo import MusicaIA
+    hay_clave = bool(os.environ.get("ELEVENLABS_API_KEY"))
+    if not hay_clave and (isinstance(ep.musica, MusicaIA) or comp.ambientes or any(not isinstance(n, str) for n, *_ in comp.efectos)):
+        print("  aviso: sin ELEVENLABS_API_KEY se omiten la música, los efectos y los ambientes generados")
+    from . import elevenlabs
+    musica, vol = None, 0.22
+    if isinstance(ep.musica, MusicaIA):
+        if hay_clave:
+            musica, vol = str(elevenlabs.musica(ep.musica.pedido, ep.musica.segundos or min(dur, 90))), ep.musica.vol
+    elif ep.musica and Path(ep.musica).exists():
+        musica = ep.musica
+    efectos = []
+    for n, t, g in comp.efectos:
+        if isinstance(n, str):
+            efectos.append((n, t, g))
+        elif hay_clave:
+            efectos.append((str(elevenlabs.efecto(n.pedido, n.duracion)), t, g))
+    ambientes = []
+    if hay_clave:
+        for pedido, t0, t1 in comp.ambientes:
+            ambientes.append((str(elevenlabs.efecto(pedido, min(22.0, t1 - t0))), t0, t1))
+    return musica, vol, efectos, ambientes
 
 
 def _textura_globo(fuente: Path, ancho: int, destino: Path):

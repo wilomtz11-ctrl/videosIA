@@ -42,7 +42,8 @@ def agrupar_subtitulos(palabras, max_palabras=3, max_letras=18):
 class Compilado:
     escena: dict                       # lo que lee el motor (escena.json)
     voces: list = field(default_factory=list)      # [(wav, inicio)]
-    efectos: list = field(default_factory=list)    # [(nombre, inicio, ganancia)]
+    efectos: list = field(default_factory=list)    # [(nombre interno o EfectoIA, inicio, ganancia)]
+    ambientes: list = field(default_factory=list)  # [(pedido, t0, t1)]
     tiempos: list = field(default_factory=list)    # [(id, t0, t1)]
 
 
@@ -130,8 +131,13 @@ def compilar(ep: Episodio, voces: list[dict], lugares: Lugares, info_capas: dict
             flechas.append({"t0": t0 + f.retraso, "t1": t1, "dur": f.duracion, "de": lugares.punto(f.de),
                             "a": lugares.punto(f.a), "color": f.color})
             out.efectos.append(("whoosh", t0 + f.retraso, 0.45))
-        for nombre in esc.efectos:
-            out.efectos.append((nombre, t0 + 0.1, 1.0))
+        for ef in esc.efectos:
+            if isinstance(ef, str):
+                out.efectos.append((ef, t0 + 0.1, 1.0))
+            else:
+                out.efectos.append((ef, t0 + ef.retraso, ef.vol))
+        if esc.ambiente:
+            out.ambientes.append((esc.ambiente, t0, t1))
         t = t1
 
     # etiquetas idénticas en escenas seguidas = un solo intervalo (sin parpadeo)
