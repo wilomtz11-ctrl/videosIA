@@ -1,10 +1,52 @@
 {
+ "musica/emotional-cinematic-piano-and-strings-ho-cb64ed451e558231.mp3": {
+  "creditos_aprox": 840,
+  "fecha": "2026-10-07",
+  "prompt": "Emotional cinematic piano and strings, hopeful and reflective",
+  "segundos": 60,
+  "tipo": "musica"
+ },
+ "musica/mysterious-cinematic-documentary-undersc-0f6579e83183194d.mp3": {
+  "creditos_aprox": 840,
+  "fecha": "2026-10-07",
+  "prompt": "Mysterious cinematic documentary underscore, low strings and soft pulsing synth, building suspense",
+  "segundos": 60,
+  "tipo": "musica"
+ },
  "musica/mysterious-cinematic-documentary-undersc-42ef57d2408ebba6.mp3": {
   "creditos_aprox": 208,
   "fecha": "2026-10-07",
   "prompt": "Mysterious cinematic documentary underscore, low strings and soft pulsing synth, building suspense",
   "segundos": 15,
   "tipo": "musica"
+ },
+ "musica/tense-cinematic-underscore-driving-low-p-a0eec7375969d4a6.mp3": {
+  "creditos_aprox": 840,
+  "fecha": "2026-10-07",
+  "prompt": "Tense cinematic underscore, driving low percussion, staccato strings, rising danger",
+  "segundos": 60,
+  "tipo": "musica"
+ },
+ "sonidos/bright-cinematic-reveal-hit-with-shimmer-2b703f981607eb93.mp3": {
+  "creditos_aprox": 40,
+  "duracion": 2.0,
+  "fecha": "2026-10-07",
+  "prompt": "Bright cinematic reveal hit with shimmer",
+  "tipo": "efecto"
+ },
+ "sonidos/church-bell-tolling-once-distant-7c862f9efc1fa552.mp3": {
+  "creditos_aprox": 80,
+  "duracion": 4.0,
+  "fecha": "2026-10-07",
+  "prompt": "Church bell tolling once, distant",
+  "tipo": "efecto"
+ },
+ "sonidos/cold-wind-blowing-over-a-high-desert-pla-647b013eef49c486.mp3": {
+  "creditos_aprox": 240,
+  "duracion": 12.0,
+  "fecha": "2026-10-07",
+  "prompt": "Cold wind blowing over a high desert plateau",
+  "tipo": "efecto"
  },
  "sonidos/cold-wind-blowing-over-a-high-desert-pla-799ab3d9a1168268.mp3": {
   "duracion": 8.23,
@@ -24,6 +66,13 @@
   "prompt": "Deep cinematic whoosh transition with low rumble",
   "tipo": "efecto"
  },
+ "sonidos/distant-19th-century-battle-ambience-can-56512294ce656472.mp3": {
+  "creditos_aprox": 240,
+  "duracion": 12.0,
+  "fecha": "2026-10-07",
+  "prompt": "Distant 19th century battle ambience, cannons and muskets",
+  "tipo": "efecto"
+ },
  "sonidos/distant-war-drums-and-cannon-rumble-cine-6766575359d519fa.mp3": {
   "duracion": 4.0,
   "fecha": "2026-10-07",
@@ -36,6 +85,105 @@
   "prompt": "Handful of old metal coins dropping and clinking on a wooden table",
   "tipo": "efecto"
  },
+ "sonidos/high-mountain-wind-with-a-distant-eagle-ca0af74e82631c44.mp3": {
+  "creditos_aprox": 240,
+  "duracion": 12.0,
+  "fecha": "2026-10-07",
+  "prompt": "High mountain wind with a distant eagle cry",
+  "tipo": "efecto"
+ },
+ "sonidos/judge-wooden-gavel-striking-twice-in-a-q-e9ce3e496599bf23.mp3": {
+  "creditos_aprox": 30,
+  "duracion": 1.5,
+  "fecha": "2026-10-07",
+  "prompt": "Judge wooden gavel striking twice in a quiet courtroom",
+  "tipo": "efecto"
+ },
+ "sonidos/official-rubber-stamp-hitting-paper-21d7893d5e79d35d.mp3": {
+  "creditos_aprox": 20,
+  "duracion": 1.0,
+  "fecha": "2026-10-07",
+  "prompt": "Official rubber stamp hitting paper",
+  "tipo": "efecto"
+ },
+ "sonidos/single-cannon-shot-with-distant-echo-ac4577c71305275b.mp3": {
+  "creditos_aprox": 60,
+  "duracion": 3.0,
+  "fecha": "2026-10-07",
+  "prompt": "Single cannon shot with distant echo",
+  "tipo": "efecto"
+ },
+ "sonidos/steam-train-whistle-and-chugging-locomot-76d907137225bf74.mp3": {
+  "creditos_aprox": 120,
+  "duracion": 6.0,
+  "fecha": "2026-10-07",
+  "prompt": "Steam train whistle and chugging locomotive",
+  "tipo": "efecto"
+ },
+ "voz/26561431afdc0e02.mp3": {
+  "creditos_aprox": 108,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[sad] Chile ganó la guerra. Bolivia perdió todo su litoral... y Perú perdió Tarapacá y, años después, Arica.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
+ "voz/27337d93350d1e3e.mp3": {
+  "creditos_aprox": 191,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[intrigued] Pero la historia no terminó ahí. En 1904, un tratado de paz lo hizo definitivo. A cambio, Chile construyó un tren de Arica a La Paz, que sube a más de cuatro mil metros de altura.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
+ "voz/2de884753970ab98.mp3": {
+  "creditos_aprox": 193,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[serious] Bolivia nunca dejó de reclamar. En 2013 demandó a Chile ante la Corte Internacional de Justicia. Y en 2018 llegó el fallo, doce votos contra tres. Chile no estaba obligado a negociar.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
+ "voz/33db49760fe78080.mp3": {
+  "creditos_aprox": 151,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[serious] Empresas chilenas y británicas llegaron a explotarlo. Y en 1874, Bolivia firmó un tratado. No subiría sus impuestos durante veinticinco años.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
+ "voz/448ea11671582f7c.mp3": {
+  "creditos_aprox": 149,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[dramatic] Bolivia ordenó rematar la empresa. Y el catorce de febrero de 1879, el mismo día del remate, tropas chilenas desembarcaron en Antofagasta.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
+ "voz/44c33ce3210051e7.mp3": {
+  "creditos_aprox": 147,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[curious] Volvamos a 1825. Bolivia nace como país independiente... y sí tenía mar. Unos cuatrocientos kilómetros de costa sobre el océano Pacífico.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
+ "voz/5bf1e3ac51746379.mp3": {
+  "creditos_aprox": 123,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[solemn] El primer combate fue en Calama, el veintitrés de marzo. Allí murió Eduardo Abaroa, hoy héroe nacional de Bolivia.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
+ "voz/64530a52921f0dc7.mp3": {
+  "creditos_aprox": 129,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[dramatic] Perú tenía un tratado secreto de defensa con Bolivia. Así estalló la Guerra del Pacífico. Chile contra Perú y Bolivia.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
  "voz/b80d2009d349fcee.mp3": {
   "creditos_aprox": 123,
   "fecha": "2026-10-07",
@@ -44,11 +192,43 @@
   "tipo": "voz",
   "voz": "l1zE9xgNpUTaQCZzpNJa"
  },
+ "voz/c6f384bdfb780c89.mp3": {
+  "creditos_aprox": 146,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[tense] Pero en 1878, Bolivia le cobró diez centavos más por cada quintal de salitre a la principal empresa salitrera. La empresa se negó a pagar.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
  "voz/cc5841250ae4685e.mp3": {
   "creditos_aprox": 145,
   "fecha": "2026-10-07",
   "modelo": "eleven_v3",
   "texto": "[intrigued] La respuesta empieza con un impuesto de diez centavos... y termina en una guerra que, casi siglo y medio después, todavía se discute.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
+ "voz/da45ef9f4e789f9f.mp3": {
+  "creditos_aprox": 98,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[amazed] Hasta que encontraron salitre, un fertilizante tan valioso que lo llamaban el oro blanco.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
+ "voz/f1d0f104b9445c7d.mp3": {
+  "creditos_aprox": 199,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[curious] Por eso, cada veintitrés de marzo, Bolivia conmemora el Día del Mar... y su armada sigue navegando en el lago Titicaca. ¿Qué país quieres que te explique después? Te leo en los comentarios.",
+  "tipo": "voz",
+  "voz": "l1zE9xgNpUTaQCZzpNJa"
+ },
+ "voz/f58e6266d3859f6b.mp3": {
+  "creditos_aprox": 135,
+  "fecha": "2026-10-07",
+  "modelo": "eleven_v3",
+  "texto": "[serious] Esa costa estaba en el desierto de Atacama, uno de los lugares más secos del planeta. Durante décadas, parecía no valer nada.",
   "tipo": "voz",
   "voz": "l1zE9xgNpUTaQCZzpNJa"
  }
