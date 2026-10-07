@@ -67,12 +67,16 @@ def creditos() -> dict:
     return {"usados": d["character_count"], "limite": d["character_limit"], "restantes": d["character_limit"] - d["character_count"]}
 
 
-def narracion(texto: str, voz: str, modelo: str, estabilidad: float, estilo: float) -> tuple[Path, dict]:
-    """MP3 de la narración + alineación por carácter. Reutiliza la biblioteca si ya existe."""
+def narracion(texto: str, voz: str, modelo: str, estabilidad: float, estilo: float,
+              solo_biblioteca: bool = False) -> tuple[Path, dict] | None:
+    """MP3 de la narración + alineación por carácter. Reutiliza la biblioteca si ya existe.
+    Con solo_biblioteca=True nunca llama a la API (devuelve None si no está guardada)."""
     h = _huella("voz", texto, voz, modelo, estabilidad, estilo)
     mp3, meta = BIBLIOTECA / "voz" / f"{h}.mp3", BIBLIOTECA / "voz" / f"{h}.json"
     if mp3.exists() and meta.exists():
         return mp3, json.loads(meta.read_text(encoding="utf-8"))
+    if solo_biblioteca:
+        return None
     cuerpo = {"text": texto, "model_id": modelo, "language_code": "es",
               "voice_settings": {"stability": estabilidad, "similarity_boost": 0.8, "style": estilo, "use_speaker_boost": True}}
     d = json.loads(_post(f"/text-to-speech/{voz}/with-timestamps?output_format=mp3_44100_128", cuerpo))

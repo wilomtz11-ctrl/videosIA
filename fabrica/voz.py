@@ -130,15 +130,138 @@ def con_tono(texto: str, tono: str | None) -> str:
     return f"[{TONOS.get(tono.lower(), tono)}] {texto}"
 
 
-def _elevenlabs(texto: str, cfg, tono: str | None = None) -> tuple[np.ndarray, list[dict]]:
-    """Una escena completa (mejor entonación) con tiempos por carácter, desde la biblioteca si ya existe."""
+def _decodificar(mp3: Path) -> np.ndarray:
     import subprocess
-    from . import elevenlabs
-    texto_voz = con_tono(texto, tono) if cfg.modelo == "eleven_v3" else texto
-    mp3, alineacion = elevenlabs.narracion(texto_voz, cfg.voz, cfg.modelo, cfg.estabilidad, cfg.estilo)
     pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(mp3), "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"],
                          capture_output=True, check=True).stdout
-    return np.frombuffer(pcm, dtype=np.float32).copy(), palabras_desde_alineacion(texto_voz, alineacion)
+    return np.frombuffer(pcm, dtype=np.float32).copy()
+
+
+# ---------- ElevenLabs: biblioteca por FRASE ----------
+# Cada frase narrada se guarda por separado en biblioteca/voz/frases/. Así:
+#  - si cambias una frase del guion, solo se paga esa frase (no la escena entera);
+#  - las frases que se repiten entre episodios (cierres, llamadas a comentar) salen gratis;
+#  - lo ya pagado nunca se vuelve a pagar, aunque el entorno sea nuevo (va a git).
+# Las frases que faltan y van seguidas se piden juntas en una sola llamada (mejor entonación).
+
+def _dir_frases() -> Path:
+    from . import elevenlabs
+    return elevenlabs.BIBLIOTECA / "voz" / "frases"
+
+
+def _clave_frase(frase: str, cfg, tono: str | None) -> str:
+    return hashlib.sha1(json.dumps(["frase", frase, cfg.voz, cfg.modelo, cfg.estabilidad, cfg.estilo, tono],
+                                   ensure_ascii=False).encode()).hexdigest()[:16]
+
+
+def _frase_guardada(frase: str, cfg, tono: str | None):
+    base = _dir_frases() / _clave_frase(frase, cfg, tono)
+    audio, meta = base.with_suffix(".ogg"), base.with_suffix(".json")
+    if not (audio.exists() and meta.exists()):
+        return None
+    a, sr = sf.read(str(audio), dtype="float32")
+    return _remuestrear(a, sr), json.loads(meta.read_text(encoding="utf-8"))["palabras"]
+
+
+def _guardar_frase(frase: str, cfg, tono: str | None, audio: np.ndarray, palabras: list[dict]):
+    base = _dir_frases() / _clave_frase(frase, cfg, tono)
+    base.parent.mkdir(parents=True, exist_ok=True)
+    sf.write(str(base.with_suffix(".ogg")), audio, SR, format="OGG", subtype="VORBIS")
+    base.with_suffix(".json").write_text(json.dumps({"texto": frase, "tono": tono, "palabras": palabras},
+                                                    ensure_ascii=False), encoding="utf-8")
+
+
+def _tono_v3(cfg, tono):
+    return tono if cfg.modelo == "eleven_v3" else None
+
+
+def trocear(texto_voz: str, frs: list[str], audio: np.ndarray, al: dict):
+    """Parte una narración en sus frases usando los tiempos por carácter.
+    Cada corte cae a mitad del silencio entre frases, así al volver a unirlas suena igual.
+    Devuelve [(audio, palabras relativas)] o None si la alineación no cuadra."""
+    chars, ini, fin = al["characters"], al["character_start_times_seconds"], al["character_end_times_seconds"]
+    if "".join(chars) != texto_voz:
+        return None
+    rangos, pos = [], 0
+    for fr in frs:
+        k = texto_voz.find(fr, pos)
+        if k < 0:
+            return None
+        rangos.append((k, k + len(fr)))
+        pos = k + len(fr)
+    palabras = palabras_desde_alineacion(texto_voz, al)
+    cuentas = [len(fr.split()) for fr in frs]
+    if sum(cuentas) != len(palabras):
+        return None
+    total = len(audio) / SR
+    cortes = [0.0] + [(fin[rangos[i][1] - 1] + ini[rangos[i + 1][0]]) / 2 for i in range(len(frs) - 1)] + [total]
+    out, w = [], 0
+    for i, n in enumerate(cuentas):
+        c0, c1 = cortes[i], cortes[i + 1]
+        pal = [{"txt": x["txt"], "t0": round(x["t0"] - c0, 3), "t1": round(x["t1"] - c0, 3)} for x in palabras[w:w + n]]
+        out.append((audio[int(round(c0 * SR)):int(round(c1 * SR))], pal))
+        w += n
+    return out
+
+
+def _plan_elevenlabs(texto: str, cfg, tono: str | None):
+    """Qué frases ya están guardadas y qué tramos hay que pedir. Devuelve (frases, clips, pedidos)
+    con pedidos = [(indices, texto a enviar)]; si la escena entera ya estaba guardada, sale gratis."""
+    frs = frases(texto)
+    clips = [_frase_guardada(f, cfg, tono) for f in frs]
+    faltan = [i for i, c in enumerate(clips) if c is None]
+    if not faltan:
+        return frs, clips, []
+    if len(faltan) == len(frs):   # escena nueva (o guardada entera en el formato anterior)
+        return frs, clips, [(faltan, texto)]
+    grupos, actual = [], [faltan[0]]
+    for i in faltan[1:]:
+        if i == actual[-1] + 1:
+            actual.append(i)
+        else:
+            grupos.append(actual)
+            actual = [i]
+    grupos.append(actual)
+    return frs, clips, [(g, " ".join(frs[i] for i in g)) for g in grupos]
+
+
+def creditos_voz(texto: str, cfg, tono: str | None = None) -> int:
+    """Créditos que costaría narrar este texto ahora (0 si todo está en la biblioteca)."""
+    from . import elevenlabs
+    tono = _tono_v3(cfg, tono)
+    _, _, pedidos = _plan_elevenlabs(texto, cfg, tono)
+    total = 0
+    for _, txt in pedidos:
+        tv = con_tono(txt, tono)
+        if elevenlabs.narracion(tv, cfg.voz, cfg.modelo, cfg.estabilidad, cfg.estilo, solo_biblioteca=True) is None:
+            total += len(tv)
+    return total
+
+
+def _elevenlabs(texto: str, cfg, tono: str | None = None) -> tuple[np.ndarray, list[dict]]:
+    """Una escena con tiempos por carácter, armada con frases de la biblioteca; solo se pide lo que falta."""
+    from . import elevenlabs
+    tono = _tono_v3(cfg, tono)
+    frs, clips, pedidos = _plan_elevenlabs(texto, cfg, tono)
+    for indices, txt in pedidos:
+        tv = con_tono(txt, tono)
+        mp3, al = elevenlabs.narracion(tv, cfg.voz, cfg.modelo, cfg.estabilidad, cfg.estilo)
+        audio = _decodificar(mp3)
+        partes = trocear(tv, [frs[i] for i in indices], audio, al)
+        if partes is None:   # alineación rara: se usa el tramo entero sin partir
+            clips[indices[0]] = (audio, palabras_desde_alineacion(tv, al))
+            for i in indices[1:]:
+                clips[i] = (np.zeros(0, np.float32), [])
+            continue
+        for i, (a, pal) in zip(indices, partes):
+            _guardar_frase(frs[i], cfg, tono, a, pal)
+            clips[i] = (a, pal)
+    trozos, palabras, t = [], [], 0.0
+    for a, pal in clips:
+        palabras += [{"txt": w["txt"], "t0": round(w["t0"] + t, 3), "t1": round(w["t1"] + t, 3)} for w in pal]
+        trozos.append(a)
+        t += len(a) / SR
+    return (np.concatenate(trozos) if trozos else np.zeros(SR, np.float32)), palabras
 
 
 def _palabras(frase, t0, t1):
@@ -190,10 +313,24 @@ def sintetizar_escena(texto: str, cfg, carpeta: Path | None = None, emocion: flo
     return audio, palabras
 
 
-def generar(episodio: str, escenas, cfg, carpeta: Path) -> list[dict]:
-    """Por escena: {'wav', 'duracion', 'palabras'}. Reutiliza lo ya generado si el texto no cambió."""
+class FaltaConfirmar(RuntimeError):
+    """La narración gastaría créditos de ElevenLabs y no se confirmó el gasto."""
+
+
+def generar(episodio: str, escenas, cfg, carpeta: Path, gastar: bool = False) -> list[dict]:
+    """Por escena: {'wav', 'duracion', 'palabras'}. Reutiliza lo ya generado si el texto no cambió.
+    Con ElevenLabs, si hay que pagar algo y gastar=False, se detiene y dice cuánto costaría."""
     carpeta = Path(carpeta) / episodio
     carpeta.mkdir(parents=True, exist_ok=True)
+    if cfg.motor == "elevenlabs":
+        costo = sum(creditos_voz(e.voz, cfg, e.tono) for e in escenas)
+        if costo and not gastar:
+            raise FaltaConfirmar(f"La voz gastaría ~{costo} créditos de ElevenLabs (lo demás ya está en la biblioteca). "
+                                 "Para confirmar agrega --si; para un borrador gratis usa --voz kokoro.")
+        if costo:
+            print(f"  voz: ~{costo} créditos (solo las frases nuevas)")
+        else:
+            print("  voz: todo desde la biblioteca, 0 créditos")
     if cfg.motor == "chatterbox":   # primero todas las frases que falten, en un solo lote
         pendientes, vistas = [], set()
         for esc in escenas:

@@ -12,7 +12,9 @@ Canal "Geografía explicada": videos educativos en español que responden una pr
    Retención: gancho en la 1.ª frase (paradoja o dato sorprendente), bucle abierto en la 2.ª, una escena cada 5–9 s,
    reenganche a mitad ("pero la historia no terminó ahí"), cierre con pregunta para comentarios. Mínimo 60 s.
    Números menores de mil escritos con letras en `voz` (la voz los lee mejor); años con cifras.
-3. `python -m fabrica validar episodios/<tema>.yaml`
+3. `python -m fabrica validar episodios/<tema>.yaml` (con ElevenLabs dice cuántos créditos costaría la voz).
+   La voz se guarda POR FRASE en `biblioteca/voz/frases/`: solo se pagan frases nuevas o cambiadas. Si hay que pagar,
+   los comandos se detienen y piden `--si`; usarlo solo con el visto bueno del usuario (borradores gratis: `--voz kokoro`).
 4. `python -m fabrica previa episodios/<tema>.yaml <seg> <seg> ...` y revisar los JPG en `salida/previa/`
    (etiquetas fuera de cuadro, textos encimados, encuadres).
 5. `python -m fabrica video episodios/<tema>.yaml` → `salida/<tema>.mp4` + `salida/<tema>_descripcion.txt`.

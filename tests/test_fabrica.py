@@ -182,3 +182,46 @@ def test_region_visible_cubre_el_encuadre():
     # la huella es simétrica en una vista cenital
     lats = [la for _, la in huella(0, 0, 0.5, 0, 0, 1.0)]
     assert abs(max(lats) + min(lats)) < 1e-6
+
+
+def _alineacion_falsa(texto, dur_letra=0.05, hueco=0.4):
+    """Tiempos por carácter: cada letra dura 0.05 s y después de cada punto hay 0.4 s de silencio."""
+    ini, fin, t = [], [], 0.0
+    for c in texto:
+        ini.append(t)
+        t += dur_letra
+        fin.append(t)
+        if c in ".?!":
+            t += hueco
+    return {"characters": list(texto), "character_start_times_seconds": ini, "character_end_times_seconds": fin}, t
+
+
+def test_trocear_parte_en_frases_y_al_unir_queda_igual():
+    import numpy as np
+    from fabrica import voz
+    texto = "[mysterious] Bolivia tiene armada. Pero no tiene mar. ¿Cómo es posible?"
+    frs = voz.frases("Bolivia tiene armada. Pero no tiene mar. ¿Cómo es posible?")
+    al, dur = _alineacion_falsa(texto)
+    audio = np.arange(int(dur * voz.SR), dtype=np.float32)
+    partes = voz.trocear(texto, frs, audio, al)
+    assert [len(p[1]) for p in partes] == [3, 4, 3]
+    assert np.array_equal(np.concatenate([p[0] for p in partes]), audio)   # sin perder ni repetir muestras
+    # cada frase empieza con su primera palabra cerca del inicio del trozo (medio silencio antes)
+    assert partes[1][1][0]["txt"] == "Pero" and 0.15 < partes[1][1][0]["t0"] < 0.25
+    assert voz.trocear(texto, ["no está en el texto"], audio, al) is None
+
+
+def test_plan_elevenlabs_pide_solo_las_frases_nuevas(tmp_path, monkeypatch):
+    import numpy as np
+    from fabrica import elevenlabs, voz
+    from fabrica.modelo import Voz
+    monkeypatch.setattr(elevenlabs, "BIBLIOTECA", tmp_path)
+    cfg = Voz(motor="elevenlabs", voz="x")
+    a = np.zeros(100, np.float32)
+    voz._guardar_frase("Uno.", cfg, None, a, [{"txt": "Uno.", "t0": 0, "t1": 0.1}])
+    voz._guardar_frase("Cuatro.", cfg, None, a, [{"txt": "Cuatro.", "t0": 0, "t1": 0.1}])
+    _, clips, pedidos = voz._plan_elevenlabs("Uno. Dos. Tres. Cuatro. Cinco.", cfg, None)
+    assert clips[0] is not None and clips[3] is not None
+    assert pedidos == [([1, 2], "Dos. Tres."), ([4], "Cinco.")]
+    assert voz.creditos_voz("Uno. Dos. Tres. Cuatro. Cinco.", cfg) == len("Dos. Tres.") + len("Cinco.")
+    assert voz.creditos_voz("Uno. Cuatro.", cfg) == 0

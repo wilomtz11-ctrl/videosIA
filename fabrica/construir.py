@@ -36,7 +36,8 @@ def _paso(n, total, texto):
     print(f"[{n}/{total}] {texto}", flush=True)
 
 
-def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal") -> tuple[Path, dict]:
+def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal",
+             gastar: bool = False) -> tuple[Path, dict]:
     """Deja listo build/<episodio>/ para renderizar. Devuelve (carpeta, info)."""
     ep = cargar(ruta_ep)
     if motor_voz:
@@ -71,7 +72,7 @@ def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal
     info["mapas"] = [capas.mapa_politico(k, a, zona, ep.colores, lugares, dat, n=n_capas) for k, a in ep.mapas.items()]
 
     _paso(3, 5, f"Voz ({ep.voz.motor})")
-    voces = voz.generar(nombre, ep.escenas, ep.voz, RAIZ / "voz")
+    voces = voz.generar(nombre, ep.escenas, ep.voz, RAIZ / "voz", gastar=gastar)
 
     _paso(4, 5, "Línea de tiempo")
     comp = compilar(ep, voces, lugares, {"region": zona, "rejilla": info["rejilla"], "formas": info["formas"],

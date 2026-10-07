@@ -4,6 +4,7 @@
   python -m fabrica previa episodios/bolivia_mar.yaml 1 8 20 45     # fotogramas sueltos (rápido)
   python -m fabrica video episodios/bolivia_mar.yaml                # video final
   python -m fabrica video episodios/bolivia_mar.yaml --borrador --voz estimar
+  python -m fabrica video episodios/x.yaml --si     # confirma pagar la voz de las frases nuevas
 """
 import argparse
 import sys
@@ -21,10 +22,12 @@ def main(argv=None):
     p.add_argument("episodio", type=Path)
     p.add_argument("segundos", type=float, nargs="+")
     p.add_argument("--voz", choices=["kokoro", "chatterbox", "elevenlabs", "archivos", "estimar"])
+    p.add_argument("--si", action="store_true", help="confirma el gasto de créditos de voz (solo frases nuevas)")
     p.add_argument("--calidad", choices=["borrador", "normal", "maxima"], default="normal")
     r = sub.add_parser("video", help="renderiza el video final")
     r.add_argument("episodio", type=Path)
     r.add_argument("--voz", choices=["kokoro", "chatterbox", "elevenlabs", "archivos", "estimar"])
+    r.add_argument("--si", action="store_true", help="confirma el gasto de créditos de voz (solo frases nuevas)")
     r.add_argument("--calidad", choices=["borrador", "normal", "maxima"], default="normal",
                    help="borrador = rápido; normal = 1080p; maxima = 4K nativo con texturas de alta resolución")
     r.add_argument("--borrador", action="store_true", help="atajo de --calidad borrador")
@@ -34,13 +37,14 @@ def main(argv=None):
     m.add_argument("--desde", type=float, default=0)
     m.add_argument("--hasta", type=float, default=6)
     m.add_argument("--voz", choices=["kokoro", "chatterbox", "elevenlabs", "archivos", "estimar"])
+    m.add_argument("--si", action="store_true", help="confirma el gasto de créditos de voz (solo frases nuevas)")
     m.add_argument("--calidad", choices=["borrador", "normal", "maxima"], default="maxima")
     m.add_argument("--procesos", type=int)
     k = sub.add_parser("kit", help="genera una sola vez el kit de sonido reutilizable (ElevenLabs)")
     k.add_argument("--si", action="store_true", help="confirma el gasto de créditos")
     a = ap.parse_args(argv)
 
-    from . import construir
+    from . import construir, voz
     try:
         if a.cmd == "kit":
             from . import elevenlabs, kit
@@ -58,9 +62,12 @@ def main(argv=None):
             ep = construir.cargar(a.episodio)
             palabras = sum(len(e.voz.split()) for e in ep.escenas)
             print(f"OK: '{ep.titulo}', {len(ep.escenas)} escenas, {palabras} palabras (~{palabras / 2.6:.0f} s de voz)")
+            if ep.voz.motor == "elevenlabs":
+                costo = sum(voz.creditos_voz(e.voz, ep.voz, e.tono) for e in ep.escenas)
+                print(f"Voz ElevenLabs: ~{costo} créditos por pagar (las frases ya guardadas no se cobran)")
             return 0
         calidad = "borrador" if getattr(a, "borrador", False) else getattr(a, "calidad", "normal")
-        build, info = construir.preparar(a.episodio, a.voz, calidad=calidad)
+        build, info = construir.preparar(a.episodio, a.voz, calidad=calidad, gastar=a.si)
         if a.cmd == "previa":
             for f in construir.fotogramas(build, a.segundos, construir.RAIZ / "salida" / "previa"):
                 print("  ", f)
@@ -69,6 +76,9 @@ def main(argv=None):
                 construir.recortar(build, info, a.desde, a.hasta)
             print("  ", construir.renderizar(build, info, procesos=a.procesos))
         return 0
+    except voz.FaltaConfirmar as e:
+        print(e)
+        return 3
     except ValidationError as e:
         print("El guion tiene errores:\n" + "\n".join(f"  - {'.'.join(map(str, x['loc']))}: {x['msg']}" for x in e.errors()))
         return 2
