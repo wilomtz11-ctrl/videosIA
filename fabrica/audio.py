@@ -101,6 +101,14 @@ def variante(clip: np.ndarray, k: int) -> np.ndarray:
     return np.interp(np.arange(n) * f, np.arange(len(clip)), clip).astype(np.float32)
 
 
+def _media_movil(x: np.ndarray, k: int) -> np.ndarray:
+    """Igual que np.convolve(x, ones(k)/k, 'same') pero en O(n) (con kernels grandes convolve tarda minutos)."""
+    c = np.concatenate([[0.0], np.cumsum(x, dtype=np.float64)])
+    i = np.arange(len(x))
+    lo, hi = np.clip(i - k // 2, 0, len(x)), np.clip(i - k // 2 + k, 0, len(x))
+    return ((c[hi] - c[lo]) / k).astype(np.float32)
+
+
 def mezclar(duracion, voces, efectos, musica=None, vol_musica=0.22, salida="mezcla.wav", ambientes=(), vol_ambiente=0.16):
     """voces: [(ruta, inicio)]; efectos: [(nombre interno o ruta de archivo, inicio, ganancia)];
     ambientes: [(ruta, t0, t1)] sonido de fondo por escena (con fundidos)."""
@@ -147,10 +155,10 @@ def mezclar(duracion, voces, efectos, musica=None, vol_musica=0.22, salida="mezc
                 c[-x:] *= np.linspace(1, 0, min(x, len(c)))[-len(c[-x:]):]
             m[i0:i0 + len(c)] += c
         # "ducking": la música baja cuando hay voz
-        env = np.convolve(np.abs(voz), np.ones(SR // 10) / (SR // 10), mode="same")
+        env = _media_movil(np.abs(voz), SR // 10)
         activo = np.clip(env / (env.max() + 1e-9) * 8, 0, 1)
-        suave = np.convolve(activo, np.ones(SR // 4) / (SR // 4), mode="same")
-        env_fx = np.convolve(np.abs(fx), np.ones(SR // 10) / (SR // 10), mode="same")
+        suave = _media_movil(activo, SR // 4)
+        env_fx = _media_movil(np.abs(fx), SR // 10)
         fx_activo = np.clip(env_fx / (env_fx.max() + 1e-9) * 6, 0, 1)
         ganancia = vol_musica * (1 - 0.6 * np.maximum(suave, 0.7 * fx_activo))   # también se aparta para los efectos
         t = np.arange(n) / SR
