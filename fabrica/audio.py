@@ -1,5 +1,6 @@
 """Mezcla de audio: voz + efectos (sintetizados aquí, sin derechos de terceros) + música opcional."""
 import subprocess
+from pathlib import Path
 
 import numpy as np
 import soundfile as sf
@@ -155,6 +156,23 @@ def mezclar(duracion, voces, efectos, musica=None, vol_musica=0.22, salida="mezc
         t = np.arange(n) / SR
         ganancia *= np.clip(t / 1.0, 0, 1) * np.clip((duracion - t) / 2.0, 0, 1)  # entrada y salida suaves
         mezcla += m * ganancia
-    mezcla = np.clip(mezcla, -1, 1)
-    sf.write(salida, np.stack([mezcla, mezcla], axis=1), SR)
+    # sin recortar: se guarda en coma flotante y normalizar() deja el volumen al estándar de las plataformas
+    crudo = str(Path(salida).with_name(Path(salida).stem + "_cruda.wav"))
+    sf.write(crudo, np.stack([mezcla, mezcla], axis=1), SR, subtype="FLOAT")
+    return normalizar(crudo, salida)
+
+
+def normalizar(entrada: str, salida: str, lufs=-14.0, pico=-1.5) -> str:
+    """Volumen estándar de YouTube/TikTok/Instagram (-14 LUFS) con picos por debajo de -1.5 dBTP.
+    Dos pasadas de loudnorm (EBU R128): la primera mide, la segunda corrige de forma lineal."""
+    import json
+    import subprocess
+    filtro = f"loudnorm=I={lufs}:TP={pico}:LRA=11"
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-i", entrada, "-af", filtro + ":print_format=json", "-f", "null", "-"],
+                       capture_output=True, text=True, check=True).stderr
+    m = json.loads(r[r.rindex("{"):r.rindex("}") + 1])
+    filtro += (f":measured_I={m['input_i']}:measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}"
+               f":measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", entrada, "-af", filtro, "-ar", "48000", "-c:a", "pcm_s24le", salida],
+                   check=True)
     return salida
