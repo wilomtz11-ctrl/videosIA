@@ -27,18 +27,19 @@ EFECTOS = {
     "papel": ("Old paper map unfolding", 2),
     "campana": ("Church bell tolling once, distant", 4),
     "barco": ("Old wooden ship creaking with sails flapping", 5),
+    "mazo": ("Judge wooden gavel striking twice in a quiet courtroom", 1.5),
 }
 
-# ambientes de fondo (se repiten en bucle con fundido)
+# ambientes de fondo (12 s; se repiten en bucle con fundido, así cuestan menos)
 AMBIENTES = {
-    "viento_desierto": ("Cold wind blowing over a high desert plateau", 20),
-    "olas": ("Ocean waves crashing on a rocky coast", 20),
-    "selva": ("Tropical rainforest ambience with birds and insects", 20),
-    "ciudad": ("Busy modern city ambience, traffic and people", 20),
-    "batalla": ("Distant 19th century battle ambience, cannons and muskets", 20),
-    "lluvia": ("Steady rain with distant thunder", 20),
-    "montana": ("High mountain wind with a distant eagle cry", 20),
-    "puerto": ("Old harbor ambience, seagulls, water and creaking boats", 20),
+    "viento_desierto": ("Cold wind blowing over a high desert plateau", 12),
+    "olas": ("Ocean waves crashing on a rocky coast", 12),
+    "selva": ("Tropical rainforest ambience with birds and insects", 12),
+    "ciudad": ("Busy modern city ambience, traffic and people", 12),
+    "batalla": ("Distant 19th century battle ambience, cannons and muskets", 12),
+    "lluvia": ("Steady rain with distant thunder", 12),
+    "montana": ("High mountain wind with a distant eagle cry", 12),
+    "puerto": ("Old harbor ambience, seagulls, water and creaking boats", 12),
 }
 
 # música por emoción (60 s, se repite en bucle; ~14 créditos/s)
@@ -57,8 +58,8 @@ def efecto(nombre: str) -> tuple[str, float] | None:
 
 
 def ambiente(nombre: str) -> tuple[str, float]:
-    """Nombre del kit o pedido libre (se genera a 20 s y se repite)."""
-    return AMBIENTES.get(nombre, (nombre, 20))
+    """Nombre del kit o pedido libre (se genera a 12 s y se repite)."""
+    return AMBIENTES.get(nombre, (nombre, 12))
 
 
 def musica(nombre: str) -> tuple[str, float]:
@@ -66,7 +67,9 @@ def musica(nombre: str) -> tuple[str, float]:
 
 
 def costo_estimado() -> int:
-    return len(EFECTOS) * 40 + len(AMBIENTES) * 60 + len(MUSICA) * SEGUNDOS_MUSICA * 14
+    from .elevenlabs import costo_efecto, costo_musica
+    return (sum(costo_efecto(d) for _, d in EFECTOS.values()) + sum(costo_efecto(d) for _, d in AMBIENTES.values())
+            + len(MUSICA) * costo_musica(SEGUNDOS_MUSICA))
 
 
 def generar_todo() -> None:

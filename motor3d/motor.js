@@ -59,6 +59,7 @@ renderer.setSize(W, H);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 $('escena').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(0.78, 0.86, 0.93).convertSRGBToLinear(), 1e5, 1e6);
 const camera = new THREE.PerspectiveCamera(38, W / H, 0.001, 100);
 
 const tierra = new THREE.Mesh(new THREE.SphereGeometry(1, 192, 96),
@@ -77,12 +78,24 @@ const atmosfera = new THREE.Mesh(new THREE.SphereGeometry(1.06, 96, 48), new THR
 }));
 scene.add(atmosfera);
 
+// cielo con bruma: de cerca, lo que asoma sobre el horizonte es cielo y no el negro del espacio
+const cielo = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+  depthTest: false, depthWrite: false, transparent: true, uniforms: { uOpac: { value: 0 } },
+  vertexShader: `varying float vY; void main(){ vY = position.y; gl_Position = vec4(position.xy, 0.9999, 1.0); }`,
+  fragmentShader: `uniform float uOpac; varying float vY;
+    void main(){ vec3 c = mix(vec3(0.78, 0.86, 0.93), vec3(0.24, 0.43, 0.68), smoothstep(-0.2, 1.0, vY));
+      gl_FragColor = vec4(c, uOpac); }`,
+}));
+cielo.frustumCulled = false; cielo.renderOrder = -10;
+scene.add(cielo);
+let estrellas;
 { // estrellas con semilla fija
   let s = 11; const azar = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const p = [];
   for (let i = 0; i < 5000; i++) { const v = new THREE.Vector3(azar() - .5, azar() - .5, azar() - .5).normalize().multiplyScalar(40); p.push(v.x, v.y, v.z); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
-  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 0.05 })));
+  estrellas = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true }));
+  scene.add(estrellas);
 }
 
 // ---------- relieve de la región (desplazado en la GPU) ----------
@@ -91,6 +104,7 @@ const NF = 8;
 const uRel = {
   uTex: { value: texRelieve }, uF0: { value: texF0 }, uF1: { value: texF1 },
   uMapaA: { value: transparente }, uMapaB: { value: transparente }, uMezclaMapa: { value: 0 }, uOpacMapa: { value: 1 }, uOpacParche: { value: 1 },
+  uNiebla: { value: new THREE.Vector3(0, 1, 0) },   // (cerca, lejos, intensidad) de la bruma por distancia
   uExag: { value: EXAG }, uT: { value: 0 },
   uBrillo: { value: new Array(NF).fill(0) }, uColorBrillo: { value: Array.from({ length: NF }, () => new THREE.Vector3()) },
   uPintura: { value: new Array(NF).fill(0) }, uColorPintura: { value: Array.from({ length: NF }, () => new THREE.Vector3()) },
@@ -118,16 +132,18 @@ const uRel = {
     uniforms: uRel, transparent: true,
     vertexShader: `
       attribute float h; uniform float uExag; uniform float uAlza[${NF}]; uniform sampler2D uF0, uF1;
-      varying vec2 vUv; ${mascaras}
+      varying vec2 vUv; varying float vDist; ${mascaras}
       void main(){
         vUv = uv; float alza = 0.0; float m[${NF}]; leerMascaras(uv, m);
         for (int i = 0; i < ${NF}; i++) alza += uAlza[i] * m[i];
         vec3 p = normalize(position) * (1.0004 + h * uExag / ${R_TIERRA}.0 + alza);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+        vec4 mv = modelViewMatrix * vec4(p, 1.0); vDist = -mv.z;
+        gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: `
       uniform sampler2D uTex, uF0, uF1, uMapaA, uMapaB; uniform float uMezclaMapa, uOpacMapa, uOpacParche, uT;
       uniform float uBrillo[${NF}], uPintura[${NF}]; uniform vec3 uColorBrillo[${NF}], uColorPintura[${NF}];
+      uniform vec3 uNiebla; varying float vDist;
       varying vec2 vUv; ${mascaras}
       void main(){
         vec3 c = texture2D(uTex, vUv).rgb;
@@ -142,6 +158,7 @@ const uRel = {
           float borde = smoothstep(0.15, 0.5, k) * (1.0 - smoothstep(0.5, 0.85, k));
           c += uColorBrillo[i] * uBrillo[i] * (k * 0.35 * pulso + borde * 1.3);
         }
+        c = mix(c, vec3(0.58, 0.72, 0.85), smoothstep(uNiebla.x, uNiebla.y, vDist) * uNiebla.z);
         float e = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
         gl_FragColor = vec4(c, smoothstep(0.0, 0.12, e) * uOpacParche);
         #include <colorspace_fragment>
@@ -182,7 +199,10 @@ function ponerCamara(lon, lat, alt, incl, rumbo) {
   const p = incl * deg;
   camera.position.copy(obj).addScaledVector(arriba, alt * Math.cos(p)).addScaledVector(dir, -alt * Math.sin(p));
   camera.up.copy(arriba.clone().multiplyScalar(Math.sin(p)).addScaledVector(dir, Math.cos(p)).normalize());
-  camera.near = Math.max(0.0005, alt * 0.05); camera.far = alt + 6; camera.updateProjectionMatrix();
+  camera.near = Math.max(0.0005, alt * 0.05); camera.far = alt + 6;
+  // el punto de interés queda un poco arriba del centro, dentro de la zona segura de las apps
+  camera.setViewOffset(W, H, 0, H * (E.foco_y || 0), W, H);
+  camera.updateProjectionMatrix();
   camera.lookAt(obj);
   sol.position.copy(camera.position).addScaledVector(arriba, 2).addScaledVector(este, -1.5);
 }
@@ -233,10 +253,10 @@ function proyectar(lon, lat) {
   return { x: (s.x + 1) / 2 * W, y: (1 - s.y) / 2 * H, visible: visible && s.z < 1 };
 }
 const env = (t, t0, t1, ent = 0.35, sal = 0.3) => (t0 <= 0.001 ? 1 : rampa(t, t0, ent)) * (1 - rampa(t, t1 - sal, sal));
-const ZONA_SUP = H * 0.31, ZONA_INF = H * 0.93;
+const ZONA_SUP = H * 0.31, ZONA_INF = H * 0.8, ZONA_IZQ = W * 0.1, ZONA_DER = W * 0.84;
 // franja de subtítulos: las etiquetas se apagan ahí para no encimarse con el texto
-const SUBS_SUP = H * 0.69, SUBS_INF = H * 0.85;
-const zona = (x, y) => clamp01((y - ZONA_SUP) / 80) * clamp01((ZONA_INF - y) / 60) * clamp01((x - 70) / 60) * clamp01((W - 70 - x) / 60)
+const SUBS_SUP = H * 0.555, SUBS_INF = H * 0.66;
+const zona = (x, y) => clamp01((y - ZONA_SUP) / 80) * clamp01((ZONA_INF - y) / 60) * clamp01((x - ZONA_IZQ) / 60) * clamp01((ZONA_DER - x) / 60)
   * (1 - clamp01((y - SUBS_SUP + 50) / 50) * clamp01((SUBS_INF + 50 - y) / 50));
 
 function anioEn(t) {
@@ -258,6 +278,11 @@ function renderAt(t) {
   const alt = alt0 * (1 - 0.035 * empuje);
   ponerCamara(lo, la, alt, inc, rum);
   atmosfera.material.uniforms.uOpac.value = clamp01((alt - 0.25) / 0.6);
+  const cerca = 1 - suave((alt - 0.3) / 0.5);
+  cielo.material.uniforms.uOpac.value = cerca; estrellas.material.opacity = 1 - cerca;
+  // bruma: lo lejano se funde con el cielo (profundidad y sin bordes visibles en el horizonte)
+  uRel.uNiebla.value.set(alt * 1.3, alt * 3.8, 0.9 * cerca);
+  scene.fog.near = alt * 1.3; scene.fog.far = cerca > 0.01 ? alt * 3.8 / cerca : 1e6;
   // mapa político con fundido
   const P = E.mapas_pistas; let j = 0; while (j + 1 < P.length && P[j + 1][0] <= t) j++;
   const actual = P[j][1], anterior = j > 0 ? P[j - 1][1] : actual, k = j > 0 ? rampa(t, P[j][0], E.transicion_mapa) : 1;

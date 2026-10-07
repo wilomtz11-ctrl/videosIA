@@ -65,9 +65,11 @@ def main(argv=None):
             if ep.voz.motor == "elevenlabs":
                 costo = sum(voz.creditos_voz(e.voz, ep.voz, e.tono) for e in ep.escenas)
                 print(f"Voz ElevenLabs: ~{costo} créditos por pagar (las frases ya guardadas no se cobran)")
+            c_son, nuevos = construir.costo_sonidos(ep)
+            print(f"Sonidos nuevos: ~{c_son} créditos" + "".join(f"\n  - {t}: {p} ({d} s)" for t, p, d in nuevos))
             return 0
         calidad = "borrador" if getattr(a, "borrador", False) else getattr(a, "calidad", "normal")
-        build, info = construir.preparar(a.episodio, a.voz, calidad=calidad, gastar=a.si)
+        build, info = construir.preparar(a.episodio, a.voz, calidad=calidad, gastar=a.si, audio=a.cmd != "previa")
         if a.cmd == "previa":
             for f in construir.fotogramas(build, a.segundos, construir.RAIZ / "salida" / "previa"):
                 print("  ", f)

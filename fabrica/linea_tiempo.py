@@ -161,6 +161,11 @@ def compilar(ep: Episodio, voces: list[dict], lugares: Lugares, info_capas: dict
         for ef in esc.efectos:
             if isinstance(ef, str):
                 out.efectos.append((ef, t0 + 0.1, 1.0))
+            elif ef.en:   # sincronizado con una frase de la narración (no depende de la velocidad de la voz)
+                te = buscar_frase(abs_pal, ef.en)
+                if te is None:
+                    raise ValueError(f"escena '{esc.id}': el efecto en '{ef.en}' no aparece tal cual en la narración")
+                out.efectos.append((ef, max(0, te + ef.retraso), ef.vol))
             else:
                 out.efectos.append((ef, t0 + ef.retraso, ef.vol))
         if esc.ambiente:

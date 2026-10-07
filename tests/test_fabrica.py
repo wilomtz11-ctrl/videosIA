@@ -225,3 +225,11 @@ def test_plan_elevenlabs_pide_solo_las_frases_nuevas(tmp_path, monkeypatch):
     assert pedidos == [([1, 2], "Dos. Tres."), ([4], "Cinco.")]
     assert voz.creditos_voz("Uno. Dos. Tres. Cuatro. Cinco.", cfg) == len("Dos. Tres.") + len("Cinco.")
     assert voz.creditos_voz("Uno. Cuatro.", cfg) == 0
+
+
+def test_variante_de_efecto():
+    import numpy as np
+    from fabrica.audio import variante
+    c = np.sin(np.arange(24000) / 10).astype(np.float32)
+    assert variante(c, 0) is c                       # la primera vez, el original
+    assert len(variante(c, 1)) > len(c) > len(variante(c, 2))   # luego más grave/lento o más agudo/rápido

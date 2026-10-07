@@ -114,9 +114,18 @@ class Anillo(Estricto):
 class EfectoIA(Estricto):
     """Efecto de sonido generado con ElevenLabs y guardado en biblioteca/ (se reutiliza)."""
     pedido: str = Field(min_length=3, description="qué debe sonar (en inglés da mejores resultados)")
-    retraso: float = Field(0.1, ge=0)
+    retraso: float = Field(0.1, ge=-1, description="segundos desde el inicio de la escena (o desde 'en')")
     vol: float = Field(0.8, ge=0, le=2)
     duracion: float | None = Field(None, gt=0, le=22)
+    en: str | None = Field(None, description="suena cuando la voz dice esta frase (p. ej. 'diez centavos')")
+
+    @model_validator(mode="after")
+    def _kit(self):   # {pedido: monedas, retraso: 1.6} usa el efecto del kit con ese nombre
+        from . import kit
+        if kit.efecto(self.pedido):
+            pedido, dur = kit.efecto(self.pedido)
+            self.pedido, self.duracion = pedido, self.duracion or dur
+        return self
 
 
 class MusicaIA(Estricto):

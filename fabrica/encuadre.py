@@ -20,9 +20,10 @@ def _v3(lon, lat):
     return np.array([math.cos(f) * math.sin(lo), math.sin(f), math.cos(f) * math.cos(lo)])
 
 
-def huella(lon, lat, alt, incl, rumbo, aspecto, n=12) -> list[tuple[float, float]]:
+def huella(lon, lat, alt, incl, rumbo, aspecto, foco_y=0.0, n=12) -> list[tuple[float, float]]:
     """Puntos (lon, lat) del suelo en el borde del cuadro. Los rayos que miran al cielo
-    se reemplazan por el punto del globo más cercano (el horizonte)."""
+    se reemplazan por el punto del globo más cercano (el horizonte). foco_y: desplazamiento vertical
+    del encuadre (camera.setViewOffset en el motor), en fracción de la altura del cuadro."""
     obj = _v3(lon, lat)
     lo, f = math.radians(lon), math.radians(lat)
     este = np.array([math.cos(lo), 0, -math.sin(lo)])
@@ -40,7 +41,7 @@ def huella(lon, lat, alt, incl, rumbo, aspecto, n=12) -> list[tuple[float, float
     borde = [(x, y) for x in np.linspace(-1, 1, n) for y in (-1, 1)] + [(x, y) for y in np.linspace(-1, 1, n) for x in (-1, 1)]
     puntos = []
     for x, y in borde:
-        r = adelante + derecha * x * th + arriba * y * tv
+        r = adelante + derecha * x * th + arriba * (y - 2 * foco_y) * tv
         r /= np.linalg.norm(r)
         b = cam.dot(r)
         disc = b * b - (cam.dot(cam) - 1)
@@ -50,14 +51,14 @@ def huella(lon, lat, alt, incl, rumbo, aspecto, n=12) -> list[tuple[float, float
     return puntos
 
 
-def region_visible(region, camaras, aspecto) -> list[float]:
+def region_visible(region, camaras, aspecto, foco_y=0.0) -> list[float]:
     """Región del guion agrandada para cubrir lo que ve la cámara de cerca.
     camaras: [(lon, lat, alt, incl, rumbo)]; aspecto = ancho / alto."""
     lon0, lat0, lon1, lat1 = region
     for c in camaras:
         if c[2] >= ALT_PARCHE:
             continue
-        for lo, la in huella(*c, aspecto):
+        for lo, la in huella(*c, aspecto, foco_y):
             if abs(lo - c[0]) > 180:   # no cruzar el antimeridiano
                 continue
             lon0, lon1, lat0, lat1 = min(lon0, lo), max(lon1, lo), min(lat0, la), max(lat1, la)

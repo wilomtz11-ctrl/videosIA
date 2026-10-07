@@ -92,26 +92,45 @@ def _nombre(prompt: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", prompt.lower())[:40].strip("-")
 
 
+def ruta_efecto(prompt: str, duracion: float | None = None) -> Path:
+    duracion = float(duracion) if duracion else None   # 3 y 3.0 son el mismo archivo
+    return BIBLIOTECA / "sonidos" / f"{_nombre(prompt)}-{_huella('sfx', prompt, duracion)}.mp3"
+
+
+def costo_efecto(duracion: float | None) -> int:
+    """Precio de la API: 20 créditos por segundo si se fija la duración; 100 si la elige ElevenLabs."""
+    return round(20 * duracion) if duracion else 100
+
+
 def efecto(prompt: str, duracion: float | None = None) -> Path:
     """Efecto o ambiente (en inglés funciona mejor). Se reutiliza para todos los episodios."""
-    h = _huella("sfx", prompt, duracion)
-    mp3 = BIBLIOTECA / "sonidos" / f"{_nombre(prompt)}-{h}.mp3"
+    duracion = float(duracion) if duracion else None
+    mp3 = ruta_efecto(prompt, duracion)
     if not mp3.exists():
         cuerpo = {"text": prompt, "prompt_influence": 0.5}
         if duracion:
             cuerpo["duration_seconds"] = round(min(22.0, max(0.5, duracion)), 1)
         mp3.parent.mkdir(parents=True, exist_ok=True)
         mp3.write_bytes(_post("/sound-generation?output_format=mp3_44100_128", cuerpo))
-        _registrar(f"sonidos/{mp3.name}", {"tipo": "efecto", "prompt": prompt, "duracion": duracion})
+        _registrar(f"sonidos/{mp3.name}", {"tipo": "efecto", "prompt": prompt, "duracion": duracion,
+                                           "creditos_aprox": costo_efecto(duracion)})
         print(f"  efecto nuevo: {prompt[:60]}")
     return mp3
 
 
+def ruta_musica(prompt: str, segundos: float) -> Path:
+    segundos = round(min(300, max(10, segundos)))
+    return BIBLIOTECA / "musica" / f"{_nombre(prompt)}-{_huella('musica', prompt, segundos)}.mp3"
+
+
+def costo_musica(segundos: float) -> int:
+    return round(min(300, max(10, segundos))) * 14
+
+
 def musica(prompt: str, segundos: float) -> Path:
     """Pista instrumental (~14 créditos/s). Se reutiliza para todos los episodios."""
+    mp3 = ruta_musica(prompt, segundos)
     segundos = round(min(300, max(10, segundos)))
-    h = _huella("musica", prompt, segundos)
-    mp3 = BIBLIOTECA / "musica" / f"{_nombre(prompt)}-{h}.mp3"
     if not mp3.exists():
         mp3.parent.mkdir(parents=True, exist_ok=True)
         mp3.write_bytes(_post("/music?output_format=mp3_44100_128",

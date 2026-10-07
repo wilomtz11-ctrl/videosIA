@@ -36,8 +36,13 @@ def _paso(n, total, texto):
     print(f"[{n}/{total}] {texto}", flush=True)
 
 
+# en vertical el punto de interés sube un 6 % del alto (queda a ~44 %), centrado en la zona que no tapan
+# los botones ni la descripción de TikTok, Reels y Shorts
+FOCO_Y = 0.06
+
+
 def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal",
-             gastar: bool = False) -> tuple[Path, dict]:
+             gastar: bool = False, audio: bool = True) -> tuple[Path, dict]:
     """Deja listo build/<episodio>/ para renderizar. Devuelve (carpeta, info)."""
     ep = cargar(ruta_ep)
     if motor_voz:
@@ -49,6 +54,14 @@ def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal
         shutil.rmtree(build)
     dat.mkdir(parents=True)
     cal = CALIDADES[calidad]
+    if audio and os.environ.get("ELEVENLABS_API_KEY"):   # nada se paga sin confirmar
+        c_voz = sum(voz.creditos_voz(e.voz, ep.voz, e.tono) for e in ep.escenas) if ep.voz.motor == "elevenlabs" else 0
+        c_son, nuevos = costo_sonidos(ep)
+        if (c_voz or c_son) and not gastar:
+            raise voz.FaltaConfirmar(
+                f"Esto gastaría ~{c_voz + c_son} créditos de ElevenLabs (voz {c_voz}, sonidos nuevos {c_son}: "
+                f"{', '.join(p[:28] for _, p, _ in nuevos) or 'ninguno'}). Lo ya guardado no se cobra.\n"
+                "Para confirmar agrega --si; para un borrador gratis usa --voz kokoro.")
     ancho, alto, resol = FORMATOS[ep.formato]
     lugares = Lugares(ep.region, ep.lugares)
 
@@ -56,7 +69,8 @@ def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal
     # el relieve cubre todo lo que ve la cámara (si no, quedan franjas oscuras arriba y abajo)
     camaras = [(*lugares.punto(e.camara.ir_a), e.camara.altura, e.camara.inclinacion, e.camara.rumbo)
                for e in ep.escenas if e.camara]
-    zona = encuadre.region_visible(ep.region, camaras, ancho / alto)
+    foco_y = FOCO_Y if alto > ancho else 0.0
+    zona = encuadre.region_visible(ep.region, camaras, ancho / alto, foco_y)
     # más resolución cuanto más grande la zona, para no perder detalle en los acercamientos
     crece = ((zona[2] - zona[0]) * (zona[3] - zona[1]) / ((ep.region[2] - ep.region[0]) * (ep.region[3] - ep.region[1]))) ** 0.5
     lado = lambda base, tope: int(min(tope, max(base, base * crece)) // 256 * 256)  # noqa: E731
@@ -72,11 +86,14 @@ def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal
     info["mapas"] = [capas.mapa_politico(k, a, zona, ep.colores, lugares, dat, n=n_capas) for k, a in ep.mapas.items()]
 
     _paso(3, 5, f"Voz ({ep.voz.motor})")
+    if not audio and ep.voz.motor == "elevenlabs" and sum(voz.creditos_voz(e.voz, ep.voz, e.tono) for e in ep.escenas):
+        ep.voz.motor = "estimar"   # vista previa: tiempos estimados, sin pagar voz
     voces = voz.generar(nombre, ep.escenas, ep.voz, RAIZ / "voz", gastar=gastar)
 
     _paso(4, 5, "Línea de tiempo")
     comp = compilar(ep, voces, lugares, {"region": zona, "rejilla": info["rejilla"], "formas": info["formas"],
                                           "mapas": [{"id": m["id"]} for m in info["mapas"]]}, (ancho, alto))
+    comp.escena["foco_y"] = foco_y
     comp.escena["escala"] = cal.escala
     comp.escena["antialias"] = cal.antialias   # el MSAA cuesta ~35 % sin GPU
     (dat / "escena.json").write_text(json.dumps(comp.escena, ensure_ascii=False), encoding="utf-8")
@@ -86,9 +103,13 @@ def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal
         print(f"        {t0:6.1f}–{t1:6.1f}  {id_}")
 
     _paso(5, 5, "Audio")
-    musica, vol_musica, efectos, ambientes = _sonidos_ia(ep, comp, dur)
-    mezcla = mezclador.mezclar(dur, comp.voces, efectos, musica=musica, vol_musica=vol_musica,
-                               ambientes=ambientes, salida=str(build / "mezcla.wav"))
+    mezcla = None
+    if audio:
+        musica, vol_musica, efectos, ambientes = _sonidos_ia(ep, comp, dur)
+        mezcla = mezclador.mezclar(dur, comp.voces, efectos, musica=musica, vol_musica=vol_musica,
+                          ambientes=ambientes, salida=str(build / "mezcla.wav"))
+    else:
+        print("      (vista previa: sin audio)")
 
     # proyecto HyperFrames
     creditos = " · ".join(["AWS Terrain Tiles", "NASA Blue Marble", "Natural Earth"]
@@ -112,6 +133,34 @@ def preparar(ruta_ep: Path, motor_voz: str | None = None, calidad: str = "normal
                    "resolucion": resol + ("-4k" if cal.escala == 2 else "")}
 
 
+def _musica_pedida(ep, nombre: str) -> tuple[str, float]:
+    from . import kit
+    return kit.musica(nombre) if nombre in kit.MUSICA else (nombre, ep.musica.segundos or kit.SEGUNDOS_MUSICA)
+
+
+def planear_sonidos(ep) -> list[tuple[str, str, float | None]]:
+    """Todo lo que el episodio pide a ElevenLabs aparte de la voz: [(tipo, pedido, duración)], sin repetir."""
+    from . import kit
+    from .modelo import MusicaIA
+    plan = []
+    if isinstance(ep.musica, MusicaIA):
+        plan += [("musica", *_musica_pedida(ep, m)) for m in [ep.musica.pedido] + [e.musica for e in ep.escenas if e.musica]]
+    for e in ep.escenas:
+        plan += [("efecto", ef.pedido, ef.duracion) for ef in e.efectos if not isinstance(ef, str)]
+        if e.ambiente:
+            plan.append(("efecto", *kit.ambiente(e.ambiente)))
+    return list(dict.fromkeys(plan))
+
+
+def costo_sonidos(ep) -> tuple[int, list]:
+    """Créditos de lo que falta en la biblioteca (lo guardado no se cobra) y la lista de lo nuevo."""
+    from . import elevenlabs
+    nuevos = [(t, p, d) for t, p, d in planear_sonidos(ep)
+              if not (elevenlabs.ruta_musica(p, d) if t == "musica" else elevenlabs.ruta_efecto(p, d)).exists()]
+    costo = sum(elevenlabs.costo_musica(d) if t == "musica" else elevenlabs.costo_efecto(d) for t, _, d in nuevos)
+    return costo, nuevos
+
+
 def _sonidos_ia(ep, comp, dur):
     """Resuelve música, efectos y ambientes a archivos (de la biblioteca o generados con ElevenLabs)."""
     from .modelo import MusicaIA
@@ -123,10 +172,8 @@ def _sonidos_ia(ep, comp, dur):
     musica, vol = None, 0.22
     if isinstance(ep.musica, MusicaIA) and hay_clave:
         vol = ep.musica.vol
-        pedido, seg = kit.musica(ep.musica.pedido)
-        tramos = [(ep.musica.pedido if ep.musica.pedido in kit.MUSICA else pedido, 0.0)] + list(comp.musicas)
-        musica = [(str(elevenlabs.musica(*((kit.musica(m) if m in kit.MUSICA else (m, ep.musica.segundos or seg))))), t)
-                  for m, t in tramos]
+        tramos = [(ep.musica.pedido, 0.0)] + list(comp.musicas)
+        musica = [(str(elevenlabs.musica(*_musica_pedida(ep, m))), t) for m, t in tramos]
     elif ep.musica and isinstance(ep.musica, str) and Path(ep.musica).exists():
         musica = ep.musica
     efectos = []
@@ -138,8 +185,7 @@ def _sonidos_ia(ep, comp, dur):
     ambientes = []
     if hay_clave:
         for nombre, t0, t1 in comp.ambientes:
-            pedido, d = kit.ambiente(nombre) if nombre in kit.AMBIENTES else (nombre, min(22.0, t1 - t0))
-            ambientes.append((str(elevenlabs.efecto(pedido, d)), t0, t1))
+            ambientes.append((str(elevenlabs.efecto(*kit.ambiente(nombre))), t0, t1))
     return musica, vol, efectos, ambientes
 
 

@@ -4,8 +4,9 @@ titulo: ¿Por qué Bolivia no tiene mar?
 formato: vertical
 region: [-80, -36, -54, -8]          # zona con relieve en alta resolución (lon0, lat0, lon1, lat1)
 exageracion: 5
-voz: {motor: kokoro, voz: em_alex, velocidad: 1.05}
-musica: musica/fondo.mp3             # opcional (Biblioteca de audio de YouTube)
+# voz de ElevenLabs (Alberto Rodríguez, narrador latino); cada frase queda guardada en biblioteca/voz/frases
+voz: {motor: elevenlabs, voz: l1zE9xgNpUTaQCZzpNJa, modelo: eleven_v3, estabilidad: 0.4, estilo: 0.3}
+musica: {pedido: intriga, vol: 0.2}  # música del kit; cambia por escena con 'musica:'
 
 mapas:
   hoy: 0          # fronteras actuales (Natural Earth)
@@ -22,18 +23,27 @@ lugares:
 escenas:
   - id: gancho
     voz: Bolivia tiene una armada, con barcos y miles de marinos. Pero no tiene ni un metro de costa. ¿Cómo es posible?
-    camara: {ir_a: Bolivia, altura: pais}
+    camara: {ir_a: Bolivia, altura: 0.95}
     mapa: hoy
     anio: HOY
     titular: {texto: "Bolivia tiene armada...\npero NO tiene mar", estilo: alerta}
     etiquetas: [Bolivia, Chile, Perú, Brasil, Argentina]
     resaltar: [{forma: bolivia, color: amarillo, retraso: 1.5}]
+    tono: misterio
+    ambiente: viento_desierto
+    efectos: [{pedido: golpe_grave, retraso: 0, vol: 0.9}]
+    golpes: [ni un metro de costa]
 
   - id: promesa
     voz: La respuesta empieza con un impuesto de diez centavos... y termina en una guerra que, casi siglo y medio después, todavía se discute.
     camara: {ir_a: [-66, -21], altura: 1.15}
     titular: {texto: "10 centavos → 1 guerra", estilo: dato, retraso: 1.0}
     etiquetas: [Bolivia, Chile, Perú, Argentina]
+    tono: intriga
+    efectos:
+      - {pedido: monedas, en: diez centavos, retraso: 0, vol: 0.8}
+      - {pedido: tambores_guerra, en: una guerra, retraso: 0, vol: 0.7}
+    golpes: [diez centavos, una guerra]
 
   - id: nacimiento
     voz: Volvamos a 1825. Bolivia nace como país independiente... y sí tenía mar. Unos cuatrocientos kilómetros de costa sobre el océano Pacífico.
@@ -43,11 +53,16 @@ escenas:
     titular: {texto: Unos 400 km de costa, estilo: dato, retraso: 3.5}
     etiquetas: [Bolivia, Océano Pacífico]
     resaltar: [{forma: litoral, color: azul, retraso: 2.5}]
+    tono: curioso
+    efectos: [{pedido: whoosh_grave, retraso: 0, vol: 0.8}]
+    golpes: [sí tenía mar]
 
   - id: atacama
     voz: Esa costa estaba en el desierto de Atacama, uno de los lugares más secos del planeta. Durante décadas, parecía no valer nada.
     camara: {ir_a: [-69.4, -23.4], altura: cerca, inclinacion: 58, rumbo: 75}
     etiquetas: [{texto: DESIERTO DE ATACAMA, en: [-69.9, -22.9], estilo: pais, tam: 40}]
+    tono: serio
+    ambiente: viento_desierto
 
   - id: salitre
     voz: Hasta que encontraron salitre, un fertilizante tan valioso que lo llamaban el oro blanco.
@@ -55,6 +70,10 @@ escenas:
     anio: 1870
     titular: {texto: "Salitre: el «oro blanco»", estilo: dato, retraso: 1.2}
     etiquetas: [Antofagasta]
+    tono: asombro
+    ambiente: viento_desierto
+    efectos: [{pedido: revelacion, en: el oro blanco, retraso: 0, vol: 0.8}]
+    golpes: [el oro blanco]
 
   - id: tratado_1874
     voz: Empresas chilenas y británicas llegaron a explotarlo. Y en 1874, Bolivia firmó un tratado. No subiría sus impuestos durante veinticinco años.
@@ -62,6 +81,9 @@ escenas:
     anio: 1874
     titular: {texto: "Tratado de 1874:\n25 años sin nuevos impuestos", estilo: nota, retraso: 3.0}
     etiquetas: [Antofagasta]
+    tono: serio
+    efectos: [{pedido: sello, en: firmó un tratado, retraso: 0.4, vol: 0.9}]
+    golpes: [veinticinco años]
 
   - id: impuesto
     voz: Pero en 1878, Bolivia le cobró diez centavos más por cada quintal de salitre a la principal empresa salitrera. La empresa se negó a pagar.
@@ -70,6 +92,10 @@ escenas:
     titular: {texto: "+10 centavos por quintal", estilo: alerta, retraso: 1.2}
     etiquetas: [Antofagasta]
     anillos: [{en: Antofagasta, color: rojo, retraso: 3.0}]
+    tono: tension
+    musica: tension
+    efectos: [{pedido: monedas, en: diez centavos más, retraso: 0, vol: 0.8}]
+    golpes: [se negó a pagar]
 
   - id: remate
     voz: Bolivia ordenó rematar la empresa. Y el catorce de febrero de 1879, el mismo día del remate, tropas chilenas desembarcaron en Antofagasta.
@@ -78,7 +104,9 @@ escenas:
     titular: {texto: 14 de febrero de 1879, estilo: alerta, retraso: 3.6}
     etiquetas: [Valparaíso, Antofagasta]
     flechas: [{de: [-72.6, -33.0], a: [-70.6, -23.7], color: rojo, retraso: 3.6, duracion: 2.0}]
-    efectos: [impacto]
+    tono: dramatico
+    efectos: [{pedido: canon, en: tropas chilenas, retraso: 0, vol: 0.85}]
+    golpes: [tropas chilenas]
 
   - id: guerra
     voz: Perú tenía un tratado secreto de defensa con Bolivia. Así estalló la Guerra del Pacífico. Chile contra Perú y Bolivia.
@@ -88,6 +116,9 @@ escenas:
     resaltar:
       - {forma: litoral, color: rojo, retraso: 2.8}
       - {forma: tarapaca, color: rojo, retraso: 2.8}
+    tono: dramatico
+    ambiente: batalla
+    efectos: [{pedido: tambores_guerra, en: estalló, retraso: 0, vol: 0.8}]
 
   - id: calama
     voz: El primer combate fue en Calama, el veintitrés de marzo. Allí murió Eduardo Abaroa, hoy héroe nacional de Bolivia.
@@ -95,6 +126,10 @@ escenas:
     titular: {texto: 23 de marzo de 1879, estilo: nota, retraso: 1.0}
     etiquetas: [Calama]
     anillos: [{en: Calama, color: amarillo, retraso: 1.0}]
+    tono: solemne
+    ambiente: batalla
+    efectos: [{pedido: campana, en: murió, retraso: 0.1, vol: 0.6}]
+    golpes: [héroe nacional]
 
   - id: resultado
     voz: Chile ganó la guerra. Bolivia perdió todo su litoral... y Perú perdió Tarapacá y, años después, Arica.
@@ -105,7 +140,9 @@ escenas:
     pintar:
       - {forma: litoral, color: rojo, retraso: 1.4}
       - {forma: tarapaca, color: rojo, retraso: 4.0}
-    efectos: [impacto]
+    tono: triste
+    efectos: [{pedido: golpe_grave, en: todo su litoral, retraso: 0, vol: 0.85}]
+    golpes: [todo su litoral]
 
   - id: tratado_1904
     voz: Pero la historia no terminó ahí. En 1904, un tratado de paz lo hizo definitivo. A cambio, Chile construyó un tren de Arica a La Paz, que sube a más de cuatro mil metros de altura.
@@ -115,6 +152,10 @@ escenas:
     titular: {texto: Tratado de Paz de 1904, estilo: nota, retraso: 2.0}
     etiquetas: [Arica, La Paz]
     flechas: [{de: Arica, a: La Paz, color: azul, retraso: 6.0, duracion: 2.4}]
+    tono: intriga
+    musica: intriga
+    efectos: [{pedido: tren_vapor, en: un tren, retraso: 0, vol: 0.55}]
+    golpes: [la historia no terminó ahí]
 
   - id: la_haya
     voz: Bolivia nunca dejó de reclamar. En 2013 demandó a Chile ante la Corte Internacional de Justicia. Y en 2018 llegó el fallo, doce votos contra tres. Chile no estaba obligado a negociar.
@@ -123,6 +164,10 @@ escenas:
     titular: {texto: "La Haya, 2018:\n12 votos contra 3", estilo: dato, retraso: 7.0}
     etiquetas: [Bolivia, Chile, Perú]
     resaltar: [{forma: bolivia, color: amarillo, retraso: 1.0}]
+    tono: serio
+    musica: emotivo
+    efectos: [{pedido: mazo, en: llegó el fallo, retraso: 0.2, vol: 0.9}]
+    golpes: [doce votos contra tres]
 
   - id: cierre
     voz: Por eso, cada veintitrés de marzo, Bolivia conmemora el Día del Mar... y su armada sigue navegando en el lago Titicaca. ¿Qué país quieres que te explique después? Te leo en los comentarios.
@@ -131,6 +176,9 @@ escenas:
     titular: {texto: "¿Qué país sigue?\n¡Comenta!", estilo: nota, retraso: 7.0}
     etiquetas: [{texto: Lago Titicaca, en: [-69.6, -16.55], estilo: agua, tam: 40}]
     anillos: [{en: Lago Titicaca, color: azul, retraso: 3.0}]
+    tono: curioso
+    ambiente: montana
+    golpes: [el lago Titicaca]
 
 publicacion:
   titulo: ¿Por qué Bolivia no tiene mar? 🌊

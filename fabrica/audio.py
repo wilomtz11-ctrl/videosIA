@@ -87,6 +87,19 @@ def _ajustar(clip, n):
     return out[:n]
 
 
+# Reutilización: un mismo efecto repetido suena un poco distinto cada vez (tono y velocidad ±6 %),
+# así un solo archivo de la biblioteca sirve para muchas apariciones sin sonar a copia.
+VARIANTES = (1.0, 0.94, 1.05, 0.97, 1.03)
+
+
+def variante(clip: np.ndarray, k: int) -> np.ndarray:
+    f = VARIANTES[k % len(VARIANTES)]
+    if f == 1.0:
+        return clip
+    n = int(len(clip) / f)
+    return np.interp(np.arange(n) * f, np.arange(len(clip)), clip).astype(np.float32)
+
+
 def mezclar(duracion, voces, efectos, musica=None, vol_musica=0.22, salida="mezcla.wav", ambientes=(), vol_ambiente=0.16):
     """voces: [(ruta, inicio)]; efectos: [(nombre interno o ruta de archivo, inicio, ganancia)];
     ambientes: [(ruta, t0, t1)] sonido de fondo por escena (con fundidos)."""
@@ -98,7 +111,7 @@ def mezclar(duracion, voces, efectos, musica=None, vol_musica=0.22, salida="mezc
     if pico > 0:
         voz *= 0.89 / pico  # normaliza la voz a ~-1 dBFS
     fx = np.zeros(n, np.float32)
-    cache = {}
+    cache, usos = {}, {}
     for nombre, inicio, gan in efectos:
         if nombre not in cache:
             if nombre in EFECTOS:
@@ -106,7 +119,8 @@ def mezclar(duracion, voces, efectos, musica=None, vol_musica=0.22, salida="mezc
             else:   # archivo (efecto generado y guardado en la biblioteca)
                 c = leer_con_ffmpeg(nombre)
                 cache[nombre] = c / (np.abs(c).max() + 1e-9) * 1.4   # los efectos a medida van al frente
-        _sumar(fx, cache[nombre], inicio, gan)
+        k = usos[nombre] = usos.get(nombre, -1) + 1
+        _sumar(fx, variante(cache[nombre], k), inicio, gan)
     mezcla = voz + fx * 0.6
     for ruta, t0, t1 in ambientes:
         k = int((t1 - t0) * SR)
